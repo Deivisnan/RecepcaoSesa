@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Calendar, TrendingUp, TrendingDown, Users, Printer } from 'lucide-react';
+import { API_URL } from '../config/apiConfig';
 
 interface Visit {
     id: string;
@@ -26,7 +27,7 @@ export const HistoryTab: React.FC = () => {
         setLoading(true);
         try {
             const token = localStorage.getItem('@RecepcaoSesa:token');
-            const url = `http://localhost:3001/api/visits?date=${selectedDate}&filterType=${filterType}`;
+            const url = `${API_URL}/api/visits?date=${selectedDate}&filterType=${filterType}`;
 
             const res = await fetch(url, {
                 headers: { 'Authorization': `Bearer ${token}` }

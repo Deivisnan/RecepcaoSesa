@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { type Sector } from './types';
-
-const SOCKET_URL = 'http://localhost:3001';
+import { SOCKET_URL } from './config/apiConfig';
 
 export function useRealTimeStatus() {
     const [sectors, setSectors] = useState<Sector[]>([]);

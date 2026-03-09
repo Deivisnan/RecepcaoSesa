@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { type Sector } from '../types';
 import { Printer, UserPlus } from 'lucide-react';
 import PrintTicket from './PrintTicket';
+import { API_URL } from '../config/apiConfig';
 
 interface AttendanceTabProps {
     sectors: Sector[];
@@ -42,7 +43,7 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ sectors }) => {
         setSearchingCpf(true);
         try {
             const token = localStorage.getItem('@RecepcaoSesa:token');
-            const res = await fetch(`http://localhost:3001/api/citizens/${searchCpf}`, {
+            const res = await fetch(`${API_URL}/api/citizens/${searchCpf}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (res.ok) {
@@ -67,7 +68,7 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ sectors }) => {
         setLoading(true);
         try {
             const token = localStorage.getItem('@RecepcaoSesa:token');
-            const res = await fetch('http://localhost:3001/api/visits', {
+            const res = await fetch(`${API_URL}/api/visits`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

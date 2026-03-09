@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Users, LogOut, Plus, Trash2, KeyRound } from 'lucide-react';
+import { API_URL } from '../config/apiConfig';
 
 interface Sector {
     id: string;
@@ -50,8 +51,8 @@ const Admin: React.FC = () => {
         setIsLoading(true);
         try {
             const [usersRes, sectorsRes] = await Promise.all([
-                fetch('http://localhost:3001/api/users', { headers: { 'Authorization': `Bearer ${token}` } }),
-                fetch('http://localhost:3001/api/sectors', { headers: { 'Authorization': `Bearer ${token}` } })
+                fetch(`${API_URL}/api/users`, { headers: { 'Authorization': `Bearer ${token}` } }),
+                fetch(`${API_URL}/api/sectors`, { headers: { 'Authorization': `Bearer ${token}` } })
             ]);
 
             if (usersRes.ok) setUsers(await usersRes.json());
@@ -66,7 +67,7 @@ const Admin: React.FC = () => {
     const handleCreateUser = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const res = await fetch('http://localhost:3001/api/users', {
+            const res = await fetch(`${API_URL}/api/users`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({
@@ -106,7 +107,7 @@ const Admin: React.FC = () => {
         if (!userToDelete) return;
 
         try {
-            const res = await fetch(`http://localhost:3001/api/users/${userToDelete.id}`, {
+            const res = await fetch(`${API_URL}/api/users/${userToDelete.id}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ adminPassword: adminPasswordConfirm })
@@ -137,7 +138,7 @@ const Admin: React.FC = () => {
         if (!userToChangePwd) return;
 
         try {
-            const res = await fetch(`http://localhost:3001/api/users/${userToChangePwd.id}/password`, {
+            const res = await fetch(`${API_URL}/api/users/${userToChangePwd.id}/password`, {
                 method: 'PATCH',
                 headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ newPassword: newUserPassword, adminPassword: adminPasswordConfirm })
