@@ -126,6 +126,124 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
+// --- RECEPTION CITIEN/VISIT ROUTES --- //
+
+app.get('/api/citizens/:cpf', authenticateToken, async (req, res) => {
+    try {
+        const { cpf } = req.params;
+        const citizen = await prisma.citizen.findUnique({
+            where: { cpf }
+        });
+        if (!citizen) return res.status(404).json({ error: 'Citizen not found' });
+        res.json(citizen);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch citizen' });
+    }
+});
+
+app.post('/api/visits', authenticateToken, async (req, res) => {
+    try {
+        const { cpf, name, sectorId } = req.body;
+        const userId = (req as any).user.id;
+
+        // Create or find citizen
+        const citizen = await prisma.citizen.upsert({
+            where: { cpf },
+            update: { name }, // Update name in case it changed/corrected
+            create: { cpf, name }
+        });
+
+        // Create visit
+        const visit = await prisma.visit.create({
+            data: {
+                citizenId: citizen.cpf,
+                sectorId,
+                userId
+            },
+            include: {
+                citizen: true,
+                sector: true
+            }
+        });
+
+        // Emit socket event to update dashboard queue stats or real-time lists if needed later
+        io.emit('new_visit', visit);
+
+        res.status(201).json(visit);
+    } catch (error) {
+        console.error('Error creating visit:', error);
+        res.status(500).json({ error: 'Failed to create visit' });
+    }
+});
+
+app.get('/api/visits', authenticateToken, async (req, res) => {
+    try {
+        const { date, filterType } = req.query; // filterType: 'day', 'week', 'month'
+
+        // Base query
+        let queryOptions: any = {
+            include: {
+                citizen: true,
+                sector: true,
+                user: { select: { email: true } }
+            },
+            orderBy: { timestamp: 'desc' }
+        };
+
+        if (date && filterType) {
+            const targetDate = new Date(date as string);
+
+            let startDate = new Date(targetDate);
+            let endDate = new Date(targetDate);
+
+            if (filterType === 'day') {
+                startDate.setHours(0, 0, 0, 0);
+                endDate.setHours(23, 59, 59, 999);
+            } else if (filterType === 'week') {
+                const day = startDate.getDay();
+                // Start of week (Sunday)
+                startDate.setDate(startDate.getDate() - day);
+                startDate.setHours(0, 0, 0, 0);
+                // End of week (Saturday)
+                endDate.setDate(endDate.getDate() + (6 - day));
+                endDate.setHours(23, 59, 59, 999);
+            } else if (filterType === 'month') {
+                startDate.setDate(1);
+                startDate.setHours(0, 0, 0, 0);
+                endDate.setMonth(endDate.getMonth() + 1);
+                endDate.setDate(0);
+                endDate.setHours(23, 59, 59, 999);
+            }
+
+            queryOptions.where = {
+                timestamp: {
+                    gte: startDate,
+                    lte: endDate
+                }
+            };
+        } else {
+            // Default to today if no filter
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+            const todayEnd = new Date();
+            todayEnd.setHours(23, 59, 59, 999);
+
+            queryOptions.where = {
+                timestamp: {
+                    gte: todayStart,
+                    lte: todayEnd
+                }
+            };
+        }
+
+        const visits = await prisma.visit.findMany(queryOptions);
+        res.json(visits);
+    } catch (error) {
+        console.error('Error fetching visits:', error);
+        res.status(500).json({ error: 'Failed to fetch visits' });
+    }
+});
+
 // --- ADMIN USERS ROUTES --- //
 
 app.get('/api/users', authenticateToken, requireAdmin, async (req, res) => {

@@ -24,16 +24,37 @@ model User {
   role      Role     @default(SECTOR)
   sectorId  String?  @unique // Nullable for RECEPTION and ADMIN
   sector    Sector?  @relation(fields: [sectorId], references: [id])
+  visits    Visit[]  // Adicionado relacionamento com Visit
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model Sector {
-  id        String   @id @default(uuid())
-  name      String   @unique
-  status    String   @default("AVAILABLE") // AVAILABLE | BUSY | AWAY
-  queueCount Int     @default(0)
-  user      User?    // One-to-one relationship
+  id         String   @id @default(uuid())
+  name       String   @unique
+  status     String   @default("AVAILABLE") // AVAILABLE | BUSY | AWAY
+  queueCount Int      @default(0)
+  user       User?    // One-to-one relationship
+  visits     Visit[]  // Adicionado relacionamento com Visit
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Citizen {
+  cpf       String   @id
+  name      String
+  visits    Visit[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Visit {
+  id        String   @id @default(uuid())
+  citizenId String
+  citizen   Citizen  @relation(fields: [citizenId], references: [cpf])
+  sectorId  String
+  sector    Sector   @relation(fields: [sectorId], references: [id])
+  userId    String?  // Referência ao usuário/recepcionista que registrou
+  user      User?    @relation(fields: [userId], references: [id])
+  timestamp DateTime @default(now()) // Armazena a data e hora do atendimento
 }

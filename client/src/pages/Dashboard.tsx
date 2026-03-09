@@ -2,8 +2,10 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRealTimeStatus } from '../useRealTimeStatus';
 import { type Sector } from '../types';
-import { Unlock, Lock, LogOut, Search, Users, Plus, Minus } from 'lucide-react';
+import { Unlock, Lock, LogOut, Search, Users, Plus, Minus, LayoutDashboard, UserCheck } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import AttendanceTab from '../components/AttendanceTab';
+import HistoryTab from '../components/HistoryTab';
 
 const SectorCard = ({ sector, onUpdateQueue }: { sector: Sector, onUpdateQueue: (id: string, action: 'add' | 'remove') => void }) => {
     const getStatusConfig = (status: Sector['status']) => {
@@ -89,16 +91,11 @@ const SectorCard = ({ sector, onUpdateQueue }: { sector: Sector, onUpdateQueue: 
     );
 };
 
-const Dashboard: React.FC = () => {
-    const { sectors, updateQueue } = useRealTimeStatus();
-    const { logout } = useAuth();
-    const navigate = useNavigate();
-
-    // Search & Filters State
+// Extracted Panel Component
+const PanelTab = ({ sectors, updateQueue }: { sectors: Sector[], updateQueue: any }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<Sector['status'] | 'ALL'>('ALL');
 
-    // Derived filtered data
     const filteredSectors = useMemo(() => {
         return sectors.filter(sector => {
             const matchesSearch = sector.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -107,20 +104,97 @@ const Dashboard: React.FC = () => {
         });
     }, [sectors, searchTerm, statusFilter]);
 
+    return (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50 mb-8 flex flex-col lg:flex-row gap-4">
+                <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                    <input
+                        type="text"
+                        placeholder="Pesquisar por nome do setor..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg py-3 pl-10 pr-4 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium"
+                    />
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                    <button
+                        onClick={() => setStatusFilter('ALL')}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${statusFilter === 'ALL' ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-400 hover:bg-slate-800'}`}
+                    >
+                        Todos ({sectors.length})
+                    </button>
+                    <button
+                        onClick={() => setStatusFilter('AVAILABLE')}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${statusFilter === 'AVAILABLE' ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' : 'bg-slate-900 border-slate-800 text-slate-400 hover:bg-slate-800'}`}
+                    >
+                        Livre
+                    </button>
+                    <button
+                        onClick={() => setStatusFilter('BUSY')}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${statusFilter === 'BUSY' ? 'bg-rose-500/20 border-rose-500 text-rose-400' : 'bg-slate-900 border-slate-800 text-slate-400 hover:bg-slate-800'}`}
+                    >
+                        Ocupado
+                    </button>
+                    <button
+                        onClick={() => setStatusFilter('AWAY')}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${statusFilter === 'AWAY' ? 'bg-amber-500/20 border-amber-500 text-amber-400' : 'bg-slate-900 border-slate-800 text-slate-400 hover:bg-slate-800'}`}
+                    >
+                        Ausente
+                    </button>
+                </div>
+            </div>
+
+            <main>
+                {sectors.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20">
+                        <div className="w-12 h-12 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mb-4"></div>
+                        <p className="text-slate-400 text-xl animate-pulse">Sincronizando com os setores...</p>
+                    </div>
+                ) : filteredSectors.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-center">
+                        <div className="bg-slate-800 p-6 rounded-full mb-4 border border-slate-700">
+                            <Search className="w-8 h-8 text-slate-500" />
+                        </div>
+                        <p className="text-slate-400 text-xl">Nenhum setor encontrado com esses filtros.</p>
+                        <button onClick={() => { setSearchTerm(''); setStatusFilter('ALL'); }} className="mt-4 text-indigo-400 hover:text-indigo-300 underline font-medium">
+                            Limpar filtros
+                        </button>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        {filteredSectors.map((sector) => (
+                            <SectorCard key={sector.id} sector={sector} onUpdateQueue={updateQueue} />
+                        ))}
+                    </div>
+                )}
+            </main>
+        </div>
+    );
+};
+
+const Dashboard: React.FC = () => {
+    const { sectors, updateQueue } = useRealTimeStatus();
+    const { logout } = useAuth();
+    const navigate = useNavigate();
+
+    const [activeTab, setActiveTab] = useState<'attendance' | 'panel' | 'history'>('attendance');
+
     const handleLogout = () => {
         logout();
         navigate('/login');
     };
 
     return (
-        <div className="min-h-screen bg-slate-900 text-slate-50 p-6 md:p-10">
-            <div className="max-w-[1600px] mx-auto">
-                <header className="flex flex-col md:flex-row justify-between items-center mb-12 gap-6">
+        <div className="min-h-screen bg-slate-900 text-slate-50 p-6 md:p-10 font-sans selection:bg-indigo-500/30 print:p-0 print:bg-white">
+            <div className="max-w-[1600px] mx-auto print:hidden">
+                <header className="flex flex-col md:flex-row justify-between items-center mb-8 gap-6 border-b border-slate-800 pb-8">
                     <div>
                         <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent mb-2">
-                            Painel Geral de Salas
+                            Recepção Sesa
                         </h1>
-                        <p className="text-slate-400 text-lg">Recepção Sesa - Atualizado em tempo real</p>
+                        <p className="text-slate-400 text-lg">Controle de Fluxo e Atendimento</p>
                     </div>
 
                     <button
@@ -128,74 +202,41 @@ const Dashboard: React.FC = () => {
                         className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-slate-300 transition-colors"
                     >
                         <LogOut className="w-5 h-5" />
-                        <span>Sair do Painel</span>
+                        <span className="font-medium">Sair</span>
                     </button>
                 </header>
 
-                <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50 mb-8 flex flex-col lg:flex-row gap-4">
-                    <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                        <input
-                            type="text"
-                            placeholder="Pesquisar por nome do setor..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-700 rounded-lg py-3 pl-10 pr-4 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
-                        />
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                        <button
-                            onClick={() => setStatusFilter('ALL')}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${statusFilter === 'ALL' ? 'bg-slate-700 border-slate-600 text-white' : 'bg-slate-900 border-slate-800 text-slate-400 hover:bg-slate-800'}`}
-                        >
-                            Todos ({sectors.length})
-                        </button>
-                        <button
-                            onClick={() => setStatusFilter('AVAILABLE')}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${statusFilter === 'AVAILABLE' ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' : 'bg-slate-900 border-slate-800 text-slate-400 hover:bg-slate-800'}`}
-                        >
-                            Livre
-                        </button>
-                        <button
-                            onClick={() => setStatusFilter('BUSY')}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${statusFilter === 'BUSY' ? 'bg-rose-500/20 border-rose-500 text-rose-400' : 'bg-slate-900 border-slate-800 text-slate-400 hover:bg-slate-800'}`}
-                        >
-                            Ocupado
-                        </button>
-                        <button
-                            onClick={() => setStatusFilter('AWAY')}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${statusFilter === 'AWAY' ? 'bg-amber-500/20 border-amber-500 text-amber-400' : 'bg-slate-900 border-slate-800 text-slate-400 hover:bg-slate-800'}`}
-                        >
-                            Ausente
-                        </button>
-                    </div>
+                {/* TABS NAVIGATION */}
+                <div className="flex gap-2 mb-8 bg-slate-800/50 p-1.5 rounded-xl border border-slate-700/50 w-fit mx-auto md:mx-0">
+                    <button
+                        onClick={() => setActiveTab('attendance')}
+                        className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${activeTab === 'attendance' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                    >
+                        <UserCheck className="w-5 h-5" />
+                        Atendimento
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('panel')}
+                        className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${activeTab === 'panel' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                    >
+                        <LayoutDashboard className="w-5 h-5" />
+                        Painel de Salas
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('history')}
+                        className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${activeTab === 'history' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                    >
+                        <Search className="w-5 h-5" />
+                        Histórico e Métricas
+                    </button>
                 </div>
 
-                <main>
-                    {sectors.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-20">
-                            <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-4"></div>
-                            <p className="text-slate-400 text-xl animate-pulse">Sincronizando com os setores...</p>
-                        </div>
-                    ) : filteredSectors.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-20 text-center">
-                            <div className="bg-slate-800 p-6 rounded-full mb-4">
-                                <Search className="w-8 h-8 text-slate-500" />
-                            </div>
-                            <p className="text-slate-400 text-xl">Nenhum setor encontrado com esses filtros.</p>
-                            <button onClick={() => { setSearchTerm(''); setStatusFilter('ALL'); }} className="mt-4 text-blue-400 hover:text-blue-300 underline">
-                                Limpar filtros
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                            {filteredSectors.map((sector) => (
-                                <SectorCard key={sector.id} sector={sector} onUpdateQueue={updateQueue} />
-                            ))}
-                        </div>
-                    )}
-                </main>
+                {/* TAB CONTENT */}
+                <div className="transition-all">
+                    {activeTab === 'attendance' && <AttendanceTab sectors={sectors} />}
+                    {activeTab === 'panel' && <PanelTab sectors={sectors} updateQueue={updateQueue} />}
+                    {activeTab === 'history' && <HistoryTab />}
+                </div>
             </div>
         </div>
     );

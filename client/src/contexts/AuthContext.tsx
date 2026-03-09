@@ -22,13 +22,13 @@ const AuthContext = createContext<AuthContextData>({} as AuthContextData);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
     const [token, setToken] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         const storedToken = localStorage.getItem('@RecepcaoSesa:token');
         if (storedToken) {
             try {
                 const decoded = jwtDecode<User>(storedToken);
-                // Basic expiration check can be added here
                 setToken(storedToken);
                 setUser(decoded);
             } catch (e) {
@@ -37,6 +37,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setUser(null);
             }
         }
+        setIsLoading(false);
     }, []);
 
     const login = (newToken: string, userData: User) => {
@@ -50,6 +51,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setToken(null);
         setUser(null);
     };
+
+    if (isLoading) {
+        return <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+            <div className="w-12 h-12 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
+        </div>;
+    }
 
     return (
         <AuthContext.Provider value={{ user, token, login, logout, isAuthenticated: !!user }}>
