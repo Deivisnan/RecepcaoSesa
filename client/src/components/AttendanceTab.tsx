@@ -49,7 +49,7 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ sectors }) => {
         }
     };
 
-    const printTicket = (data: { code: string, sectorName: string, date: Date }) => {
+    const printTicket = (data: { code: string, sectorName: string, citizenName: string, date: Date }) => {
         const printContent = `
             <!DOCTYPE html>
             <html>
@@ -62,6 +62,7 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ sectors }) => {
                     .divider { border-top: 1px dashed #000; margin: 10px 0; }
                     .code { font-size: 40px; font-weight: bold; margin: 10px 0; letter-spacing: 2px; }
                     .info { font-size: 13px; margin: 5px 0; }
+                    .citizen { font-size: 14px; font-weight: bold; margin: 10px 0; text-transform: uppercase; }
                     .footer { font-size: 11px; margin-top: 15px; color: #555; }
                     @media print {
                         @page { margin: 0; }
@@ -79,6 +80,7 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ sectors }) => {
                    <div class="divider"></div>
                    
                    <div class="info">Setor: <strong>${data.sectorName}</strong></div>
+                   <div class="citizen">${data.citizenName}</div>
                    <div class="code">${data.code}</div>
                    
                    <div class="divider"></div>
@@ -135,6 +137,7 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ sectors }) => {
                 printTicket({
                     code: data.code,
                     sectorName: data.sector.name,
+                    citizenName: data.citizen.name,
                     date: new Date(data.timestamp)
                 });
 

@@ -90,6 +90,7 @@ export const HistoryTab: React.FC = () => {
                     .divider { border-top: 1px dashed #000; margin: 10px 0; }
                     .code { font-size: 40px; font-weight: bold; margin: 10px 0; letter-spacing: 2px; }
                     .info { font-size: 13px; margin: 5px 0; }
+                    .citizen { font-size: 14px; font-weight: bold; margin: 10px 0; text-transform: uppercase; }
                     .footer { font-size: 11px; margin-top: 15px; color: #555; }
                     @media print {
                         @page { margin: 0; }
@@ -107,7 +108,8 @@ export const HistoryTab: React.FC = () => {
                    <div class="divider"></div>
                    
                    <div class="info">Setor: <strong>${visit.sector.name}</strong></div>
-                   <div class="code">${visit.code}</div>
+                   <div class="citizen">${visit.citizen.name}</div>
+                   <div class="code">${visit.code || '—'}</div>
                    
                    <div class="divider"></div>
 
