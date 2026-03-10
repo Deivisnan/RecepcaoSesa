@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { type Sector } from '../types';
-import { Printer, UserPlus, AlertTriangle, CheckCircle, Hash } from 'lucide-react';
+import { Printer, UserPlus, AlertTriangle } from 'lucide-react';
 import { API_URL } from '../config/apiConfig';
 import { toast } from 'sonner';
 
@@ -15,10 +15,6 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ sectors }) => {
     const [loading, setLoading] = useState(false);
     const [searchingCpf, setSearchingCpf] = useState(false);
     const [lastTicket, setLastTicket] = useState<{ code: string; sectorName: string; date: Date } | null>(null);
-
-    // Checkout state
-    const [checkoutCode, setCheckoutCode] = useState('');
-    const [checkoutLoading, setCheckoutLoading] = useState(false);
 
     const formatCpf = (val: string) => {
         return val.replace(/\D/g, '')
@@ -105,33 +101,6 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ sectors }) => {
         }
     };
 
-    const handleCheckout = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!checkoutCode.trim()) {
-            toast.error('Digite o código do ticket.');
-            return;
-        }
-        setCheckoutLoading(true);
-        try {
-            const token = localStorage.getItem('@RecepcaoSesa:token');
-            const res = await fetch(`${API_URL}/api/visits/${checkoutCode.toUpperCase()}/checkout`, {
-                method: 'PATCH',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (res.ok) {
-                toast.success(`Ticket ${checkoutCode.toUpperCase()} finalizado com sucesso!`);
-                setCheckoutCode('');
-            } else {
-                const err = await res.json();
-                toast.error(err.error || 'Erro ao dar baixa');
-            }
-        } catch {
-            toast.error('Erro de conexão');
-        } finally {
-            setCheckoutLoading(false);
-        }
-    };
-
     return (
         <div className="space-y-6 max-w-3xl mx-auto">
             {/* REGISTRO */}
@@ -208,34 +177,6 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ sectors }) => {
                             {loading ? 'Registrando...' : (<><Printer className="w-5 h-5" />Registrar e Imprimir Ticket</>)}
                         </button>
                     </div>
-                </form>
-            </div>
-
-            {/* DAR BAIXA (pelo setor — mas recepção também pode ver o campo como informação) */}
-            <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 shadow-xl">
-                <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                    <CheckCircle className="text-emerald-400" />
-                    Dar Baixa no Ticket
-                </h2>
-                <form onSubmit={handleCheckout} className="flex gap-3">
-                    <div className="flex-1 relative">
-                        <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input
-                            type="text"
-                            value={checkoutCode}
-                            onChange={(e) => setCheckoutCode(e.target.value.toUpperCase())}
-                            placeholder="Ex: A-045"
-                            maxLength={6}
-                            className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg pl-10 pr-4 py-3 focus:ring-2 focus:ring-emerald-500 outline-none transition-all font-mono tracking-widest uppercase"
-                        />
-                    </div>
-                    <button
-                        type="submit"
-                        disabled={checkoutLoading}
-                        className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-6 py-3 rounded-xl font-bold transition-all"
-                    >
-                        {checkoutLoading ? 'Aguarde...' : 'Finalizar'}
-                    </button>
                 </form>
             </div>
 
