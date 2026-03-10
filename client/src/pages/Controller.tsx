@@ -99,9 +99,12 @@ const Controller: React.FC = () => {
     return (
         <div className="min-h-screen bg-slate-900 flex flex-col p-4 md:p-8">
             <header className="flex justify-between items-center mb-12 max-w-lg mx-auto w-full">
-                <div>
-                    <p className="text-slate-400 text-sm font-semibold tracking-wider uppercase">Painel de Controle</p>
-                    <h1 className="text-3xl font-bold text-white mt-1">{sector.name}</h1>
+                <div className="flex items-center gap-3">
+                    <img src="/logo.png" alt="Logo Prefeitura" className="h-10 object-contain" />
+                    <div>
+                        <p className="text-slate-400 text-sm font-semibold tracking-wider uppercase">Painel de Controle</p>
+                        <h1 className="text-3xl font-bold text-white mt-1">{sector.name}</h1>
+                    </div>
                 </div>
 
                 <button

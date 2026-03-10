@@ -190,11 +190,14 @@ const Dashboard: React.FC = () => {
         <div className="min-h-screen bg-slate-900 text-slate-50 p-6 md:p-10 font-sans selection:bg-indigo-500/30 print:p-0 print:bg-white">
             <div className="max-w-[1600px] mx-auto print:hidden">
                 <header className="flex flex-col md:flex-row justify-between items-center mb-8 gap-6 border-b border-slate-800 pb-8">
-                    <div>
-                        <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent mb-2">
-                            Recepção Sesa
-                        </h1>
-                        <p className="text-slate-400 text-lg">Controle de Fluxo e Atendimento</p>
+                    <div className="flex items-center gap-4">
+                        <img src="/logo.png" alt="Logo Prefeitura" className="h-12 object-contain" />
+                        <div>
+                            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent mb-2">
+                                Recepção Sesa
+                            </h1>
+                            <p className="text-slate-400 text-lg">Controle de Fluxo e Atendimento</p>
+                        </div>
                     </div>
 
                     <button

@@ -55,7 +55,16 @@ const Login: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4">
+            {/* Logo acima do card */}
+            <div className="mb-6">
+                <img
+                    src="/logo.png"
+                    alt="Prefeitura de Lauro de Freitas - Secretaria Municipal de Saúde"
+                    className="h-16 object-contain"
+                />
+            </div>
+
             <div className="max-w-md w-full bg-slate-800 rounded-2xl shadow-xl overflow-hidden border border-slate-700">
                 <div className="p-8">
                     <div className="flex justify-center mb-8">

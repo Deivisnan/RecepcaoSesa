@@ -168,6 +168,7 @@ const Admin: React.FC = () => {
         <div className="min-h-screen bg-slate-100 flex flex-col relative">
             <header className="bg-slate-900 text-white shadow-md py-4 px-6 flex items-center justify-between">
                 <div className="flex items-center gap-3">
+                    <img src="/logo.png" alt="Logo Prefeitura" className="h-10 object-contain" />
                     <Users className="w-6 h-6 text-blue-400" />
                     <h1 className="text-xl font-bold">Painel de TI - Gestão de Acessos</h1>
                 </div>
