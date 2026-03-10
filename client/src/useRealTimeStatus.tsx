@@ -27,10 +27,7 @@ export function useRealTimeStatus() {
                     );
                 }
             )
-            .subscribe((status, err) => {
-                console.log('[Realtime] Status da assinatura:', status);
-                if (err) console.error('[Realtime] Erro:', err);
-            });
+            .subscribe();
 
         return () => {
             supabase.removeChannel(channel);
