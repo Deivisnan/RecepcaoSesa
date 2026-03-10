@@ -20,20 +20,23 @@ export function useRealTimeStatus() {
                 'postgres_changes',
                 { event: 'UPDATE', schema: 'public', table: 'Sector' },
                 (payload) => {
+                    console.log('[Realtime] UPDATE recebido:', payload);
                     const updatedSector = payload.new as Sector;
                     setSectors((prev) =>
                         prev.map((s) => (s.id === updatedSector.id ? updatedSector : s))
                     );
                 }
             )
-            .subscribe();
+            .subscribe((status, err) => {
+                console.log('[Realtime] Status da assinatura:', status);
+                if (err) console.error('[Realtime] Erro:', err);
+            });
 
         return () => {
             supabase.removeChannel(channel);
         };
     }, []);
 
-    // Atualiza status via REST → Prisma atualiza DB → Supabase Realtime notifica todos
     const updateStatus = async (sectorId: string, status: Sector['status']) => {
         const token = localStorage.getItem('@RecepcaoSesa:token');
         try {
@@ -50,7 +53,6 @@ export function useRealTimeStatus() {
         }
     };
 
-    // Atualiza fila via REST → Prisma atualiza DB → Supabase Realtime notifica todos
     const updateQueue = async (sectorId: string, action: 'add' | 'remove') => {
         const token = localStorage.getItem('@RecepcaoSesa:token');
         try {
