@@ -14,7 +14,6 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ sectors }) => {
     const [selectedSector, setSelectedSector] = useState('');
     const [loading, setLoading] = useState(false);
     const [searchingCpf, setSearchingCpf] = useState(false);
-    const [lastTicket, setLastTicket] = useState<{ code: string; sectorName: string; date: Date } | null>(null);
 
     const formatCpf = (val: string) => {
         return val.replace(/\D/g, '')
@@ -50,6 +49,62 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ sectors }) => {
         }
     };
 
+    const printTicket = (data: { code: string, sectorName: string, date: Date }) => {
+        const printContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body { font-family: 'Courier New', Courier, monospace; margin: 0; padding: 20px; display: flex; justify-content: center; background: white; color: black; }
+                    .ticket { width: 280px; padding: 20px; border: 2px solid #000; text-align: center; }
+                    img { width: 150px; margin-bottom: 10px; }
+                    h1 { font-size: 14px; font-weight: bold; margin: 0 0 5px 0; }
+                    .divider { border-top: 1px dashed #000; margin: 10px 0; }
+                    .code { font-size: 40px; font-weight: bold; margin: 10px 0; letter-spacing: 2px; }
+                    .info { font-size: 13px; margin: 5px 0; }
+                    .footer { font-size: 11px; margin-top: 15px; color: #555; }
+                    @media print {
+                        @page { margin: 0; }
+                        body { margin: 0; padding: 0; }
+                        .ticket { border: none; }
+                    }
+                </style>
+            </head>
+            <body>
+               <div class="ticket">
+                   <img src="/logo.png" alt="Logo">
+                   <h1>SECRETARIA MUNICIPAL DE SAÚDE</h1>
+                   <p style="font-size: 10px; margin: 0;">PREFEITURA DE LAURO DE FREITAS</p>
+                   
+                   <div class="divider"></div>
+                   
+                   <div class="info">Setor: <strong>${data.sectorName}</strong></div>
+                   <div class="code">${data.code}</div>
+                   
+                   <div class="divider"></div>
+
+                   <div class="footer">
+                       <div>Data: ${data.date.toLocaleDateString('pt-BR')}</div>
+                       <div>Hora: ${data.date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div>
+                       <div style="margin-top: 10px; font-style: italic;">Aguarde ser chamado.</div>
+                   </div>
+               </div>
+            </body>
+            </html>
+        `;
+
+        const printWindow = window.open('', '', 'width=400,height=600');
+        if (printWindow) {
+            printWindow.document.write(printContent);
+            printWindow.document.close();
+            printWindow.focus();
+            setTimeout(() => {
+                printWindow.print();
+                printWindow.close();
+            }, 250);
+        }
+    };
+
     const selectedSectorObj = sectors.find(s => s.id === selectedSector);
     const isAwayBlocked = selectedSectorObj?.status === 'AWAY';
 
@@ -75,21 +130,19 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ sectors }) => {
 
             if (res.ok) {
                 const data = await res.json();
-                const ticketInfo = {
+
+                // Print using unified style
+                printTicket({
                     code: data.code,
                     sectorName: data.sector.name,
                     date: new Date(data.timestamp)
-                };
-                setLastTicket(ticketInfo);
+                });
+
                 toast.success(`Ticket ${data.code} gerado com sucesso!`);
 
-                // Print
-                setTimeout(() => {
-                    window.print();
-                    setCpf('');
-                    setName('');
-                    setSelectedSector('');
-                }, 300);
+                setCpf('');
+                setName('');
+                setSelectedSector('');
             } else {
                 const err = await res.json();
                 toast.error(err.error || 'Erro ao registrar atendimento');
@@ -179,24 +232,6 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ sectors }) => {
                     </div>
                 </form>
             </div>
-
-            {/* PRINT AREA — oculta na tela, visível apenas na impressão */}
-            {lastTicket && (
-                <div className="hidden print:block print:fixed print:inset-0 print:flex print:items-center print:justify-center">
-                    <div style={{ fontFamily: 'monospace', border: '2px solid #000', padding: '24px', width: '280px', textAlign: 'center' }}>
-                        <img src="/logo.png" alt="Logo" style={{ width: '180px', margin: '0 auto 12px' }} />
-                        <h2 style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '8px' }}>SECRETARIA MUNICIPAL DE SAÚDE</h2>
-                        <div style={{ borderTop: '1px dashed #000', borderBottom: '1px dashed #000', padding: '12px 0', margin: '12px 0' }}>
-                            <p style={{ fontSize: '13px', marginBottom: '4px' }}>Setor: <strong>{lastTicket.sectorName}</strong></p>
-                            <p style={{ fontSize: '40px', fontWeight: 'bold', letterSpacing: '4px', margin: '8px 0' }}>{lastTicket.code}</p>
-                        </div>
-                        <p style={{ fontSize: '12px', color: '#555' }}>
-                            {lastTicket.date.toLocaleDateString('pt-BR')} às {lastTicket.date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                        <p style={{ fontSize: '11px', marginTop: '12px', color: '#777' }}>Aguarde ser chamado.</p>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };
