@@ -2,10 +2,11 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRealTimeStatus } from '../useRealTimeStatus';
 import { type Sector } from '../types';
-import { Unlock, Lock, LogOut, Search, Users, Plus, Minus, LayoutDashboard, UserCheck } from 'lucide-react';
+import { Unlock, Lock, LogOut, Search, Users, Plus, Minus, LayoutDashboard, UserCheck, History } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import AttendanceTab from '../components/AttendanceTab';
 import HistoryTab from '../components/HistoryTab';
+import CallFlowTab from '../components/CallFlowTab';
 import CallNotificationCard from '../components/CallNotificationCard';
 
 const SectorCard = ({ sector, onUpdateQueue }: { sector: Sector, onUpdateQueue: (id: string, action: 'add' | 'remove') => void }) => {
@@ -180,7 +181,7 @@ const Dashboard: React.FC = () => {
     const { logout } = useAuth();
     const navigate = useNavigate();
 
-    const [activeTab, setActiveTab] = useState<'attendance' | 'panel' | 'history'>('attendance');
+    const [activeTab, setActiveTab] = useState<'attendance' | 'panel' | 'history' | 'flow'>('attendance');
 
     const handleLogout = () => {
         logout();
@@ -227,23 +228,29 @@ const Dashboard: React.FC = () => {
                         Painel de Salas
                     </button>
                     <button
+                        onClick={() => setActiveTab('flow')}
+                        className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${activeTab === 'flow' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                    >
+                        <History className="w-5 h-5" />
+                        Fluxo de Chamados
+                    </button>
+                    <button
                         onClick={() => setActiveTab('history')}
                         className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${activeTab === 'history' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
                     >
                         <Search className="w-5 h-5" />
-                        Histórico e Métricas
+                        Métricas e Histórico
                     </button>
                 </div>
 
+                {/* GLOBAL NOTIFICATION POP-UP */}
+                <CallNotificationCard />
+
                 {/* TAB CONTENT */}
                 <div className="transition-all">
-                    {activeTab === 'attendance' && (
-                        <>
-                            <CallNotificationCard />
-                            <AttendanceTab sectors={sectors} />
-                        </>
-                    )}
+                    {activeTab === 'attendance' && <AttendanceTab sectors={sectors} />}
                     {activeTab === 'panel' && <PanelTab sectors={sectors} updateQueue={updateQueue} />}
+                    {activeTab === 'flow' && <CallFlowTab />}
                     {activeTab === 'history' && <HistoryTab />}
                 </div>
             </div>

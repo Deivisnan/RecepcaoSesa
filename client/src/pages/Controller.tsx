@@ -15,11 +15,39 @@ const Controller: React.FC = () => {
     const [checkoutCode, setCheckoutCode] = useState('');
     const [checkoutLoading, setCheckoutLoading] = useState(false);
     const [callingNext, setCallingNext] = useState(false);
+    const [cooldown, setCooldown] = useState(0);
 
     const sector = useMemo(() => {
         if (!user?.sectorName) return undefined;
         return sectors.find(s => s.name.toLowerCase() === user.sectorName?.toLowerCase());
     }, [sectors, user]);
+
+    // Handle Cooldown Timer
+    useEffect(() => {
+        if (!sector) return;
+
+        const storageKey = `@RecepcaoSesa:cooldown:${sector.id}`;
+        const lastCall = localStorage.getItem(storageKey);
+
+        if (lastCall) {
+            const diff = Math.floor((Date.now() - parseInt(lastCall)) / 1000);
+            if (diff < 300) { // 5 minutes = 300 seconds
+                setCooldown(300 - diff);
+            }
+        }
+
+        const timer = setInterval(() => {
+            setCooldown(current => {
+                if (current <= 1) {
+                    clearInterval(timer);
+                    return 0;
+                }
+                return current - 1;
+            });
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, [sector?.id]);
 
     const prevQueueRef = useRef(sector?.queueCount || 0);
 
@@ -59,7 +87,7 @@ const Controller: React.FC = () => {
     };
 
     const handleCallNext = async () => {
-        if (!sector) return;
+        if (!sector || cooldown > 0) return;
         setCallingNext(true);
         try {
             const token = localStorage.getItem('@RecepcaoSesa:token');
@@ -70,6 +98,11 @@ const Controller: React.FC = () => {
             if (res.ok) {
                 const data = await res.json();
                 toast.success(`Chamando: ${data.code} — ${data.citizen?.name || ''}`);
+
+                // Start cooldown
+                const timestamp = Date.now();
+                localStorage.setItem(`@RecepcaoSesa:cooldown:${sector.id}`, timestamp.toString());
+                setCooldown(300);
             } else {
                 const err = await res.json();
                 toast.error(err.error || 'Nenhum cidadão na fila');
@@ -163,11 +196,20 @@ const Controller: React.FC = () => {
                 {/* Chamar Próximo */}
                 <button
                     onClick={handleCallNext}
-                    disabled={callingNext || sector.queueCount === 0}
-                    className="w-full flex items-center justify-center gap-3 p-5 bg-indigo-600/20 hover:bg-indigo-600/40 disabled:opacity-40 disabled:cursor-not-allowed border-2 border-indigo-500 rounded-2xl text-indigo-300 font-bold text-xl transition-all"
+                    disabled={callingNext || sector.queueCount === 0 || cooldown > 0}
+                    className={`w-full flex flex-col items-center justify-center gap-1 p-5 border-2 rounded-2xl font-bold transition-all ${cooldown > 0 ? 'bg-slate-800 border-slate-700 text-slate-500 cursor-not-allowed' : 'bg-indigo-600/20 hover:bg-indigo-600/40 border-indigo-500 text-indigo-300'}`}
                 >
-                    <PhoneCall className="w-8 h-8" />
-                    {callingNext ? 'Chamando...' : 'Chamar Próximo'}
+                    <div className="flex items-center gap-3">
+                        <PhoneCall className={`w-8 h-8 ${cooldown > 0 ? 'opacity-20' : ''}`} />
+                        <span className="text-xl">
+                            {callingNext ? 'Chamando...' : cooldown > 0 ? 'Aguarde para chamar' : 'Chamar Próximo'}
+                        </span>
+                    </div>
+                    {cooldown > 0 && (
+                        <span className="text-sm font-mono bg-slate-900 px-3 py-1 rounded-full border border-slate-700 text-indigo-400 animate-pulse">
+                            Disponível em: {Math.floor(cooldown / 60)}:{(cooldown % 60).toString().padStart(2, '0')}
+                        </span>
+                    )}
                 </button>
 
                 {/* Status buttons */}
