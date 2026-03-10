@@ -146,28 +146,49 @@ app.post('/api/visits', authenticateToken, async (req, res) => {
         const { cpf, name, sectorId } = req.body;
         const userId = (req as any).user.id;
 
+        // Verify sector is not AWAY
+        const sector = await prisma.sector.findUnique({ where: { id: sectorId } });
+        if (!sector) return res.status(404).json({ error: 'Sector not found' });
+        if (sector.status === 'AWAY') {
+            return res.status(400).json({ error: 'Setor ausente. Não é possível adicionar à fila.' });
+        }
+
         // Create or find citizen
         const citizen = await prisma.citizen.upsert({
             where: { cpf },
-            update: { name }, // Update name in case it changed/corrected
+            update: { name },
             create: { cpf, name }
         });
+
+        // Generate unique ticket code (A-001 format)
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+        const todayCount = await prisma.visit.count({
+            where: { timestamp: { gte: startOfDay } }
+        });
+        const ticketNum = todayCount + 1;
+        const letterIndex = Math.floor((ticketNum - 1) / 999);
+        const numPart = ((ticketNum - 1) % 999) + 1;
+        const letter = letterIndex < 26 ? String.fromCharCode(65 + letterIndex) : 'Z';
+        const code = `${letter}-${String(numPart).padStart(3, '0')}`;
 
         // Create visit
         const visit = await prisma.visit.create({
             data: {
+                code,
                 citizenId: citizen.cpf,
                 sectorId,
-                userId
+                userId,
+                ticketStatus: 'WAITING'
             },
-            include: {
-                citizen: true,
-                sector: true
-            }
+            include: { citizen: true, sector: true }
         });
 
-        // Emit socket event to update dashboard queue stats or real-time lists if needed later
-        io.emit('new_visit', visit);
+        // Increment queue count
+        await prisma.sector.update({
+            where: { id: sectorId },
+            data: { queueCount: { increment: 1 } }
+        });
 
         res.status(201).json(visit);
     } catch (error) {
@@ -178,9 +199,8 @@ app.post('/api/visits', authenticateToken, async (req, res) => {
 
 app.get('/api/visits', authenticateToken, async (req, res) => {
     try {
-        const { date, filterType } = req.query; // filterType: 'day', 'week', 'month'
+        const { date, filterType, code, cpf } = req.query;
 
-        // Base query
         let queryOptions: any = {
             include: {
                 citizen: true,
@@ -190,9 +210,22 @@ app.get('/api/visits', authenticateToken, async (req, res) => {
             orderBy: { timestamp: 'desc' }
         };
 
+        // Search by ticket code
+        if (code) {
+            queryOptions.where = { code: { contains: code as string, mode: 'insensitive' } };
+            const visits = await prisma.visit.findMany(queryOptions);
+            return res.json(visits);
+        }
+
+        // Search by CPF
+        if (cpf) {
+            queryOptions.where = { citizenId: { contains: cpf as string } };
+            const visits = await prisma.visit.findMany(queryOptions);
+            return res.json(visits);
+        }
+
         if (date && filterType) {
             const targetDate = new Date(date as string);
-
             let startDate = new Date(targetDate);
             let endDate = new Date(targetDate);
 
@@ -201,10 +234,8 @@ app.get('/api/visits', authenticateToken, async (req, res) => {
                 endDate.setHours(23, 59, 59, 999);
             } else if (filterType === 'week') {
                 const day = startDate.getDay();
-                // Start of week (Sunday)
                 startDate.setDate(startDate.getDate() - day);
                 startDate.setHours(0, 0, 0, 0);
-                // End of week (Saturday)
                 endDate.setDate(endDate.getDate() + (6 - day));
                 endDate.setHours(23, 59, 59, 999);
             } else if (filterType === 'month') {
@@ -214,26 +245,13 @@ app.get('/api/visits', authenticateToken, async (req, res) => {
                 endDate.setDate(0);
                 endDate.setHours(23, 59, 59, 999);
             }
-
-            queryOptions.where = {
-                timestamp: {
-                    gte: startDate,
-                    lte: endDate
-                }
-            };
+            queryOptions.where = { timestamp: { gte: startDate, lte: endDate } };
         } else {
-            // Default to today if no filter
             const todayStart = new Date();
             todayStart.setHours(0, 0, 0, 0);
             const todayEnd = new Date();
             todayEnd.setHours(23, 59, 59, 999);
-
-            queryOptions.where = {
-                timestamp: {
-                    gte: todayStart,
-                    lte: todayEnd
-                }
-            };
+            queryOptions.where = { timestamp: { gte: todayStart, lte: todayEnd } };
         }
 
         const visits = await prisma.visit.findMany(queryOptions);
@@ -342,6 +360,70 @@ app.patch('/api/users/:id/password', authenticateToken, requireAdmin, async (req
         res.json({ message: 'Senha atualizada com sucesso' });
     } catch (error) {
         res.status(500).json({ error: 'Failed to update user password' });
+    }
+});
+
+// --- CALL NEXT & CHECKOUT ---
+
+app.post('/api/sectors/:id/call-next', authenticateToken, async (req, res) => {
+    try {
+        const sectorId = req.params.id as string;
+
+        // Get next WAITING visit in FIFO order
+        const nextVisit = await prisma.visit.findFirst({
+            where: { sectorId, ticketStatus: 'WAITING' },
+            orderBy: { timestamp: 'asc' },
+            include: { citizen: true, sector: true }
+        });
+
+        if (!nextVisit) {
+            return res.status(404).json({ error: 'Nenhum cidadão aguardando na fila.' });
+        }
+
+        // Update visit status to IN_SERVICE
+        const updatedVisit = await prisma.visit.update({
+            where: { id: nextVisit.id },
+            data: { ticketStatus: 'IN_SERVICE' },
+            include: { citizen: true, sector: true }
+        });
+
+        res.json(updatedVisit);
+    } catch (error) {
+        console.error('Error calling next:', error);
+        res.status(500).json({ error: 'Failed to call next' });
+    }
+});
+
+app.patch('/api/visits/:code/checkout', authenticateToken, async (req, res) => {
+    try {
+        const code = req.params.code as string;
+
+        const visit = await prisma.visit.findUnique({
+            where: { code },
+            include: { sector: true }
+        });
+
+        if (!visit) return res.status(404).json({ error: 'Ticket não encontrado.' });
+        if (visit.ticketStatus === 'FINISHED') {
+            return res.status(400).json({ error: 'Ticket já finalizado.' });
+        }
+
+        // Mark as finished
+        const updated = await prisma.visit.update({
+            where: { code },
+            data: { ticketStatus: 'FINISHED' }
+        });
+
+        // Decrement sector queue
+        await prisma.sector.update({
+            where: { id: visit.sectorId },
+            data: { queueCount: { decrement: 1 } }
+        });
+
+        res.json(updated);
+    } catch (error) {
+        console.error('Error checkout:', error);
+        res.status(500).json({ error: 'Failed to checkout' });
     }
 });
 

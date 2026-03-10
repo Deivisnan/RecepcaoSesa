@@ -6,6 +6,7 @@ import { Unlock, Lock, LogOut, Search, Users, Plus, Minus, LayoutDashboard, User
 import { useAuth } from '../contexts/AuthContext';
 import AttendanceTab from '../components/AttendanceTab';
 import HistoryTab from '../components/HistoryTab';
+import CallNotificationCard from '../components/CallNotificationCard';
 
 const SectorCard = ({ sector, onUpdateQueue }: { sector: Sector, onUpdateQueue: (id: string, action: 'add' | 'remove') => void }) => {
     const getStatusConfig = (status: Sector['status']) => {
@@ -236,7 +237,12 @@ const Dashboard: React.FC = () => {
 
                 {/* TAB CONTENT */}
                 <div className="transition-all">
-                    {activeTab === 'attendance' && <AttendanceTab sectors={sectors} />}
+                    {activeTab === 'attendance' && (
+                        <>
+                            <CallNotificationCard />
+                            <AttendanceTab sectors={sectors} />
+                        </>
+                    )}
                     {activeTab === 'panel' && <PanelTab sectors={sectors} updateQueue={updateQueue} />}
                     {activeTab === 'history' && <HistoryTab />}
                 </div>

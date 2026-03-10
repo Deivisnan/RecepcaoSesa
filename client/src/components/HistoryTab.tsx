@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Calendar, TrendingUp, TrendingDown, Users, Printer } from 'lucide-react';
+import { Calendar, TrendingUp, TrendingDown, Users, Printer, Search, Hash, UserCircle } from 'lucide-react';
 import { API_URL } from '../config/apiConfig';
+import { toast } from 'sonner';
 
 interface Visit {
     id: string;
+    code: string;
     citizen: {
         cpf: string;
         name: string;
@@ -20,6 +22,11 @@ interface Visit {
 export const HistoryTab: React.FC = () => {
     const [filterType, setFilterType] = useState<'day' | 'week' | 'month'>('day');
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+
+    // Search states
+    const [searchCode, setSearchCode] = useState('');
+    const [searchCpf, setSearchCpf] = useState('');
+
     const [visits, setVisits] = useState<Visit[]>([]);
     const [loading, setLoading] = useState(false);
 
@@ -27,7 +34,15 @@ export const HistoryTab: React.FC = () => {
         setLoading(true);
         try {
             const token = localStorage.getItem('@RecepcaoSesa:token');
-            const url = `${API_URL}/api/visits?date=${selectedDate}&filterType=${filterType}`;
+            let url = `${API_URL}/api/visits?`;
+
+            if (searchCode.trim()) {
+                url += `code=${searchCode.trim()}`;
+            } else if (searchCpf.trim()) {
+                url += `cpf=${searchCpf.trim().replace(/\D/g, '')}`;
+            } else {
+                url += `date=${selectedDate}&filterType=${filterType}`;
+            }
 
             const res = await fetch(url, {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -39,6 +54,7 @@ export const HistoryTab: React.FC = () => {
             }
         } catch (error) {
             console.error('Failed to fetch visits', error);
+            toast.error('Erro ao buscar registros');
         } finally {
             setLoading(false);
         }
@@ -49,22 +65,31 @@ export const HistoryTab: React.FC = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [filterType, selectedDate]);
 
+    const handleSearch = (e: React.FormEvent) => {
+        e.preventDefault();
+        fetchVisits();
+    };
+
+    const handleClearSearch = () => {
+        setSearchCode('');
+        setSearchCpf('');
+        fetchVisits();
+    };
+
     const handleReprint = (visit: Visit) => {
         const printContent = `
             <!DOCTYPE html>
             <html>
             <head>
                 <style>
-                    body { font-family: sans-serif; margin: 0; padding: 10px; display: flex; justify-content: center; background: white; color: black; }
-                    .ticket { width: 300px; padding: 15px; border: 1px dashed #999; text-align: center; }
-                    h1 { font-size: 20px; font-weight: bold; margin: 0 0 10px 0; text-transform: uppercase; }
-                    .divider { border-bottom: 1px solid black; margin-bottom: 15px; }
-                    .info-group { text-align: left; margin-bottom: 12px; }
-                    .label { font-size: 11px; font-weight: bold; color: #555; display: block; margin-bottom: 3px; }
-                    .value { font-size: 15px; font-weight: 600; word-break: break-word; line-height: 1.2; margin: 0; }
-                    .sector-box { font-size: 18px; font-weight: bold; text-transform: uppercase; border: 2px solid black; padding: 8px; text-align: center; margin-top: 5px; background: #f9f9f9;}
-                    .footer { border-top: 1px solid black; padding-top: 10px; font-size: 12px; display: flex; justify-content: space-between; font-family: monospace; margin-top: 20px;}
-                    .note { font-size: 10px; color: #666; margin-top: 20px; text-transform: uppercase; }
+                    body { font-family: 'Courier New', Courier, monospace; margin: 0; padding: 20px; display: flex; justify-content: center; background: white; color: black; }
+                    .ticket { width: 280px; padding: 20px; border: 2px solid #000; text-align: center; }
+                    img { width: 150px; margin-bottom: 10px; }
+                    h1 { font-size: 14px; font-weight: bold; margin: 0 0 5px 0; }
+                    .divider { border-top: 1px dashed #000; margin: 10px 0; }
+                    .code { font-size: 40px; font-weight: bold; margin: 10px 0; letter-spacing: 2px; }
+                    .info { font-size: 13px; margin: 5px 0; }
+                    .footer { font-size: 11px; margin-top: 15px; color: #555; }
                     @media print {
                         @page { margin: 0; }
                         body { margin: 0; padding: 0; }
@@ -74,30 +99,22 @@ export const HistoryTab: React.FC = () => {
             </head>
             <body>
                <div class="ticket">
-                   <h1>RECEPÇÃO SESA</h1>
+                   <img src="/logo.png" alt="Logo">
+                   <h1>SECRETARIA MUNICIPAL DE SAÚDE</h1>
+                   <p style="font-size: 10px; margin: 0;">PREFEITURA DE LAURO DE FREITAS</p>
+                   
                    <div class="divider"></div>
                    
-                   <div class="info-group">
-                       <span class="label">CIDADÃO:</span>
-                       <p class="value">${visit.citizen.name}</p>
-                   </div>
+                   <div class="info">Setor: <strong>${visit.sector.name}</strong></div>
+                   <div class="code">${visit.code}</div>
                    
-                   <div class="info-group">
-                       <span class="label">CPF:</span>
-                       <p class="value">${visit.citizen.cpf}</p>
-                   </div>
-                   
-                   <div class="info-group" style="padding-top: 5px;">
-                       <span class="label">SETOR DESTINO:</span>
-                       <div class="sector-box">${visit.sector.name}</div>
-                   </div>
+                   <div class="divider"></div>
 
                    <div class="footer">
-                       <span>${new Date(visit.timestamp).toLocaleDateString('pt-BR')}</span>
-                       <span>${new Date(visit.timestamp).toLocaleTimeString('pt-BR')}</span>
+                       <div>Data: ${new Date(visit.timestamp).toLocaleDateString('pt-BR')}</div>
+                       <div>Hora: ${new Date(visit.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div>
+                       <div style="margin-top: 10px; font-style: italic;">* REIMPRESSÃO *</div>
                    </div>
-                   
-                   <div class="note">* REIMPRESSÃO COPIA</div>
                </div>
             </body>
             </html>
@@ -115,12 +132,9 @@ export const HistoryTab: React.FC = () => {
         }
     };
 
-    // Calculate metrics
     const metrics = useMemo(() => {
         if (!visits.length) return { total: 0, highPeak: null, lowPeak: null };
 
-        // Group by day for peaks (if week or month)
-        // Group by hour for peaks (if day)
         const groups: Record<string, number> = {};
 
         visits.forEach(v => {
@@ -128,7 +142,7 @@ export const HistoryTab: React.FC = () => {
             let key = '';
 
             if (filterType === 'day') {
-                key = `${date.getHours()}:00 - ${date.getHours() + 1}:00`;
+                key = `${date.getHours()}:00`;
             } else {
                 key = date.toLocaleDateString('pt-BR');
             }
@@ -146,7 +160,6 @@ export const HistoryTab: React.FC = () => {
             if (count < min) { min = count; lowPeakStr = key; }
         });
 
-        // If only one group exists, min/max logic might overlap
         if (Object.keys(groups).length === 1) {
             lowPeakStr = highPeakStr;
         }
@@ -160,125 +173,157 @@ export const HistoryTab: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            {/* Filters Area */}
-            <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50">
-                <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-                    <div className="flex gap-2 bg-slate-900 p-1 rounded-lg">
-                        <button
-                            onClick={() => setFilterType('day')}
-                            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${filterType === 'day' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}
-                        >
-                            Dia
-                        </button>
-                        <button
-                            onClick={() => setFilterType('week')}
-                            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${filterType === 'week' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}
-                        >
-                            Semana
-                        </button>
-                        <button
-                            onClick={() => setFilterType('month')}
-                            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${filterType === 'month' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}
-                        >
-                            Mês
-                        </button>
+            {/* Search and Filters Area */}
+            <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50 space-y-6">
+                <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center justify-between">
+                    {/* Date Filters */}
+                    <div className="flex flex-wrap items-center gap-4">
+                        <div className="flex gap-1 bg-slate-900 p-1 rounded-xl border border-slate-700">
+                            {(['day', 'week', 'month'] as const).map((type) => (
+                                <button
+                                    key={type}
+                                    onClick={() => { setFilterType(type); handleClearSearch(); }}
+                                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${filterType === type ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                                >
+                                    {type === 'day' ? 'Dia' : type === 'week' ? 'Semana' : 'Mês'}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="flex items-center gap-3 bg-slate-900 border border-slate-700 rounded-xl px-4 py-2">
+                            <Calendar className="text-indigo-400 w-5 h-5" />
+                            <input
+                                type="date"
+                                value={selectedDate}
+                                onChange={(e) => setSelectedDate(e.target.value)}
+                                className="bg-transparent text-white outline-none text-sm font-medium"
+                            />
+                        </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                        <Calendar className="text-slate-400 w-5 h-5" />
-                        <input
-                            type="date"
-                            value={selectedDate}
-                            onChange={(e) => setSelectedDate(e.target.value)}
-                            className="bg-slate-900 border border-slate-700 text-white rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-                        />
-                    </div>
+                    {/* Advanced Search */}
+                    <form onSubmit={handleSearch} className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+                        <div className="relative flex-1 min-w-[150px]">
+                            <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                            <input
+                                type="text"
+                                placeholder="Código Ticket"
+                                value={searchCode}
+                                onChange={(e) => setSearchCode(e.target.value.toUpperCase())}
+                                className="w-full bg-slate-900 border border-slate-700 text-white rounded-xl pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                            />
+                        </div>
+                        <div className="relative flex-1 min-w-[150px]">
+                            <UserCircle className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                            <input
+                                type="text"
+                                placeholder="CPF"
+                                value={searchCpf}
+                                onChange={(e) => setSearchCpf(e.target.value)}
+                                className="w-full bg-slate-900 border border-slate-700 text-white rounded-xl pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                            />
+                        </div>
+                        <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2">
+                            <Search className="w-4 h-4" />
+                            Buscar
+                        </button>
+                        {(searchCode || searchCpf) && (
+                            <button type="button" onClick={handleClearSearch} className="text-slate-400 hover:text-white text-xs underline">Limpar</button>
+                        )}
+                    </form>
                 </div>
             </div>
 
-            {/* Dashboard Cards Area */}
+            {/* Metrics Dashboard */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-4 opacity-10">
-                        <Users className="w-24 h-24 text-blue-500" />
+                <div className="bg-slate-800 border-l-4 border-l-blue-500 border border-slate-700 rounded-2xl p-6 shadow-sm">
+                    <div className="flex justify-between items-start mb-4">
+                        <p className="text-slate-400 font-semibold text-sm uppercase">Total Atendimentos</p>
+                        <Users className="w-6 h-6 text-blue-500 opacity-50" />
                     </div>
-                    <p className="text-slate-400 font-medium mb-1">Total Atendimentos</p>
-                    <h3 className="text-4xl font-bold text-white mb-2">{metrics.total}</h3>
-                    <p className="text-sm text-slate-500">No período selecionado</p>
+                    <div className="flex items-baseline gap-2">
+                        <h3 className="text-4xl font-black text-white">{metrics.total}</h3>
+                        <span className="text-slate-500 text-xs font-medium">unidades</span>
+                    </div>
                 </div>
 
-                <div className="bg-slate-800 border border-emerald-900/50 rounded-2xl p-6 relative overflow-hidden">
+                <div className="bg-slate-800 border-l-4 border-l-emerald-500 border border-slate-700 rounded-2xl p-6 shadow-sm">
                     <div className="flex items-center justify-between mb-4">
-                        <p className="text-slate-400 font-medium">Pico de Fluxo (Alto)</p>
-                        <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-400">
-                            <TrendingUp className="w-5 h-5" />
-                        </div>
+                        <p className="text-slate-400 font-semibold text-sm uppercase">Pico de Fluxo (Alto)</p>
+                        <TrendingUp className="w-6 h-6 text-emerald-500 opacity-50" />
                     </div>
                     <h3 className="text-2xl font-bold text-white mb-1">{metrics.highPeak?.label || '-'}</h3>
-                    <p className="text-sm text-emerald-400">{metrics.highPeak?.count || 0} pessoas</p>
+                    <div className="flex items-center gap-1.5 text-emerald-400 font-bold">
+                        <span className="text-lg">{metrics.highPeak?.count || 0}</span>
+                        <span className="text-xs uppercase">pessoas</span>
+                    </div>
                 </div>
 
-                <div className="bg-slate-800 border border-rose-900/50 rounded-2xl p-6 relative overflow-hidden">
+                <div className="bg-slate-800 border-l-4 border-l-rose-500 border border-slate-700 rounded-2xl p-6 shadow-sm">
                     <div className="flex items-center justify-between mb-4">
-                        <p className="text-slate-400 font-medium">Pico de Fluxo (Baixo)</p>
-                        <div className="p-2 bg-rose-500/10 rounded-lg text-rose-400">
-                            <TrendingDown className="w-5 h-5" />
-                        </div>
+                        <p className="text-slate-400 font-semibold text-sm uppercase">Pico de Fluxo (Baixo)</p>
+                        <TrendingDown className="w-6 h-6 text-rose-500 opacity-50" />
                     </div>
                     <h3 className="text-2xl font-bold text-white mb-1">{metrics.lowPeak?.label || '-'}</h3>
-                    <p className="text-sm text-rose-400">{metrics.lowPeak?.count || 0} pessoas</p>
+                    <div className="flex items-center gap-1.5 text-rose-400 font-bold">
+                        <span className="text-lg">{metrics.lowPeak?.count || 0}</span>
+                        <span className="text-xs uppercase">pessoas</span>
+                    </div>
                 </div>
             </div>
 
             {/* Table Area */}
-            <div className="bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden">
-                <div className="p-6 border-b border-slate-700">
+            <div className="bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden shadow-xl">
+                <div className="p-6 border-b border-slate-700 flex justify-between items-center bg-slate-800/50">
                     <h2 className="text-xl font-bold text-white">Registros de Visitas</h2>
+                    <span className="text-xs text-slate-500 font-mono">Total: {visits.length} registros</span>
                 </div>
 
                 <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm whitespace-nowrap">
-                        <thead className="bg-slate-900/50 text-slate-400 uppercase text-xs">
+                        <thead className="bg-slate-900/80 text-slate-400 uppercase text-[10px] font-bold tracking-widest">
                             <tr>
-                                <th className="px-6 py-4 font-medium tracking-wider">Data / Hora</th>
-                                <th className="px-6 py-4 font-medium tracking-wider">Cidadão</th>
-                                <th className="px-6 py-4 font-medium tracking-wider">Setor Destino</th>
-                                <th className="px-6 py-4 font-medium tracking-wider text-right">Ação</th>
+                                <th className="px-6 py-4">Ticket</th>
+                                <th className="px-6 py-4">Cidadão / CPF</th>
+                                <th className="px-6 py-4">Setor Destino</th>
+                                <th className="px-6 py-4">Data / Hora</th>
+                                <th className="px-6 py-4 text-right">Ação</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-700/50">
                             {loading ? (
-                                <tr>
-                                    <td colSpan={4} className="px-6 py-12 text-center text-slate-400">Carregando dados...</td>
-                                </tr>
+                                <tr><td colSpan={5} className="px-6 py-20 text-center text-slate-400"><div className="flex flex-col items-center gap-3"><div className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div><span>Buscando registros...</span></div></td></tr>
                             ) : visits.length === 0 ? (
-                                <tr>
-                                    <td colSpan={4} className="px-6 py-12 text-center text-slate-400">Nenhum registro encontrado para este período.</td>
-                                </tr>
+                                <tr><td colSpan={5} className="px-6 py-20 text-center text-slate-400"><div className="flex flex-col items-center gap-3"><Search className="w-10 h-10 opacity-20" /><p>Nenhum registro encontrado.</p></div></td></tr>
                             ) : (
                                 visits.map(visit => (
-                                    <tr key={visit.id} className="hover:bg-slate-700/20 transition-colors">
+                                    <tr key={visit.id} className="hover:bg-slate-700/30 transition-colors group">
                                         <td className="px-6 py-4">
-                                            <div className="text-white font-medium">{new Date(visit.timestamp).toLocaleDateString('pt-BR')}</div>
-                                            <div className="text-slate-400 text-xs">{new Date(visit.timestamp).toLocaleTimeString('pt-BR')}</div>
+                                            <span className="bg-slate-900 text-white px-3 py-1.5 rounded-lg border border-slate-700 font-mono font-black text-base shadow-sm group-hover:border-indigo-500/50 transition-colors">
+                                                {visit.code}
+                                            </span>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="text-white font-medium">{visit.citizen.name}</div>
-                                            <div className="text-slate-400 text-xs">{visit.citizen.cpf}</div>
+                                            <div className="text-white font-bold">{visit.citizen.name}</div>
+                                            <div className="text-slate-400 text-xs font-mono">{visit.citizen.cpf}</div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-900 text-indigo-400 border border-indigo-500/20">
+                                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
                                                 {visit.sector.name}
                                             </span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="text-white font-medium">{new Date(visit.timestamp).toLocaleDateString('pt-BR')}</div>
+                                            <div className="text-slate-500 text-xs">{new Date(visit.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div>
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <button
                                                 onClick={() => handleReprint(visit)}
-                                                className="text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-700 p-2 rounded-lg transition-colors border border-slate-700 inline-flex items-center gap-2"
-                                                title="Reimprimir Ticket"
+                                                className="bg-indigo-600/10 hover:bg-indigo-600 text-indigo-400 hover:text-white p-2.5 rounded-xl transition-all border border-indigo-500/20 flex items-center gap-2 ml-auto"
+                                                title="Reimprimir Ticket (Sem CPF)"
                                             >
                                                 <Printer className="w-4 h-4" />
-                                                <span className="hidden sm:inline">Reimprimir</span>
+                                                <span className="text-xs font-bold uppercase tracking-tighter">Reimprimir</span>
                                             </button>
                                         </td>
                                     </tr>

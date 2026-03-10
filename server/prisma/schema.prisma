@@ -24,7 +24,7 @@ model User {
   role      Role     @default(SECTOR)
   sectorId  String?  @unique // Nullable for RECEPTION and ADMIN
   sector    Sector?  @relation(fields: [sectorId], references: [id])
-  visits    Visit[]  // Adicionado relacionamento com Visit
+  visits    Visit[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -34,8 +34,9 @@ model Sector {
   name       String   @unique
   status     String   @default("AVAILABLE") // AVAILABLE | BUSY | AWAY
   queueCount Int      @default(0)
-  user       User?    // One-to-one relationship
-  visits     Visit[]  // Adicionado relacionamento com Visit
+  soundUrl   String?  // URL do áudio de chamada específico do setor
+  user       User?
+  visits     Visit[]
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
@@ -49,12 +50,14 @@ model Citizen {
 }
 
 model Visit {
-  id        String   @id @default(uuid())
-  citizenId String
-  citizen   Citizen  @relation(fields: [citizenId], references: [cpf])
-  sectorId  String
-  sector    Sector   @relation(fields: [sectorId], references: [id])
-  userId    String?  // Referência ao usuário/recepcionista que registrou
-  user      User?    @relation(fields: [userId], references: [id])
-  timestamp DateTime @default(now()) // Armazena a data e hora do atendimento
+  id           String   @id @default(uuid())
+  code         String   @unique  // Código único do ticket ex: A-045
+  ticketStatus String   @default("WAITING") // WAITING | IN_SERVICE | FINISHED
+  citizenId    String
+  citizen      Citizen  @relation(fields: [citizenId], references: [cpf])
+  sectorId     String
+  sector       Sector   @relation(fields: [sectorId], references: [id])
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id])
+  timestamp    DateTime @default(now())
 }
