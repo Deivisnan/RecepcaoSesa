@@ -2,14 +2,14 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRealTimeStatus } from '../useRealTimeStatus';
 import { type Sector } from '../types';
-import { Unlock, Lock, LogOut, Search, Users, Plus, Minus, LayoutDashboard, UserCheck, History } from 'lucide-react';
+import { Unlock, Lock, LogOut, Search, Users, LayoutDashboard, UserCheck, History } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import AttendanceTab from '../components/AttendanceTab';
 import HistoryTab from '../components/HistoryTab';
 import CallFlowTab from '../components/CallFlowTab';
 import CallNotificationCard from '../components/CallNotificationCard';
 
-const SectorCard = ({ sector, onUpdateQueue }: { sector: Sector, onUpdateQueue: (id: string, action: 'add' | 'remove') => void }) => {
+const SectorCard = ({ sector }: { sector: Sector }) => {
     const getStatusConfig = (status: Sector['status']) => {
         switch (status) {
             case 'AVAILABLE':
@@ -66,35 +66,19 @@ const SectorCard = ({ sector, onUpdateQueue }: { sector: Sector, onUpdateQueue: 
                 {config.text}
             </span>
 
-            {/* Queue Controls */}
-            <div className="mt-6 flex items-center gap-3 bg-slate-900/50 p-2 rounded-xl border border-slate-700/50 w-full justify-between">
-                <button
-                    onClick={() => onUpdateQueue(sector.id, 'remove')}
-                    disabled={!sector.queueCount || sector.queueCount === 0}
-                    className="p-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:hover:bg-slate-800 rounded-lg text-slate-300 transition-colors"
-                    title="Remover da fila"
-                >
-                    <Minus className="w-4 h-4" />
-                </button>
-
-                <span className="text-sm text-slate-400 font-medium whitespace-nowrap">
-                    Fila: <strong className="text-white text-base ml-1">{sector.queueCount || 0}</strong>
+            {/* Queue Display */}
+            <div className="mt-6 flex items-center justify-center gap-3 bg-slate-900/50 px-4 py-3 rounded-xl border border-slate-700/50 w-full">
+                <Users className="w-5 h-5 text-indigo-400 opacity-70" />
+                <span className="text-sm text-slate-400 font-medium">
+                    Fila de espera: <strong className="text-white text-lg ml-1">{sector.queueCount || 0}</strong>
                 </span>
-
-                <button
-                    onClick={() => onUpdateQueue(sector.id, 'add')}
-                    className="p-2 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-400 rounded-lg border border-indigo-500/30 transition-colors"
-                    title="Adicionar à fila"
-                >
-                    <Plus className="w-4 h-4" />
-                </button>
             </div>
         </div>
     );
 };
 
 // Extracted Panel Component
-const PanelTab = ({ sectors, updateQueue }: { sectors: Sector[], updateQueue: any }) => {
+const PanelTab = ({ sectors }: { sectors: Sector[] }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<Sector['status'] | 'ALL'>('ALL');
 
@@ -167,7 +151,7 @@ const PanelTab = ({ sectors, updateQueue }: { sectors: Sector[], updateQueue: an
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         {filteredSectors.map((sector) => (
-                            <SectorCard key={sector.id} sector={sector} onUpdateQueue={updateQueue} />
+                            <SectorCard key={sector.id} sector={sector} />
                         ))}
                     </div>
                 )}
@@ -177,7 +161,7 @@ const PanelTab = ({ sectors, updateQueue }: { sectors: Sector[], updateQueue: an
 };
 
 const Dashboard: React.FC = () => {
-    const { sectors, updateQueue } = useRealTimeStatus();
+    const { sectors } = useRealTimeStatus();
     const { logout } = useAuth();
     const navigate = useNavigate();
 
@@ -249,7 +233,7 @@ const Dashboard: React.FC = () => {
                 {/* TAB CONTENT */}
                 <div className="transition-all">
                     {activeTab === 'attendance' && <AttendanceTab sectors={sectors} />}
-                    {activeTab === 'panel' && <PanelTab sectors={sectors} updateQueue={updateQueue} />}
+                    {activeTab === 'panel' && <PanelTab sectors={sectors} />}
                     {activeTab === 'flow' && <CallFlowTab />}
                     {activeTab === 'history' && <HistoryTab />}
                 </div>
