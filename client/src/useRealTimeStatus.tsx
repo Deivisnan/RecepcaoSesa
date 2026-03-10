@@ -1,51 +1,69 @@
 import { useEffect, useState } from 'react';
-import { io, Socket } from 'socket.io-client';
 import { type Sector } from './types';
-import { SOCKET_URL } from './config/apiConfig';
+import { supabase } from './config/supabaseConfig';
+import { API_URL } from './config/apiConfig';
 
 export function useRealTimeStatus() {
     const [sectors, setSectors] = useState<Sector[]>([]);
-    const [socket, setSocket] = useState<Socket | null>(null);
 
     useEffect(() => {
-        // Busca estado inicial via API Rest
-        fetch(`${SOCKET_URL}/api/sectors`)
+        // 1. Busca estado inicial via REST
+        fetch(`${API_URL}/api/sectors`)
             .then((res) => res.json())
             .then((data) => setSectors(data))
-            .catch((err) => console.error('Failed to load initial data:', err));
+            .catch((err) => console.error('Failed to load initial sectors:', err));
 
-        // Conecta WebSocket para tempo real
-        const newSocket = io(SOCKET_URL);
-        setSocket(newSocket);
-
-        newSocket.on('connect', () => {
-            console.log('Connected to WebSocket server');
-        });
-
-        // Escuta evento de broadcast quando alguém, em qualquer lugar da clínica mudar o status via controlador
-        newSocket.on('status_changed', (updatedSector: Sector) => {
-            setSectors((prevSectors) =>
-                prevSectors.map((sector) =>
-                    sector.id === updatedSector.id ? updatedSector : sector
-                )
-            );
-        });
+        // 2. Assina mudanças em tempo real via Supabase Realtime
+        const channel = supabase
+            .channel('sectors-realtime')
+            .on(
+                'postgres_changes',
+                { event: 'UPDATE', schema: 'public', table: 'Sector' },
+                (payload) => {
+                    const updatedSector = payload.new as Sector;
+                    setSectors((prev) =>
+                        prev.map((s) => (s.id === updatedSector.id ? updatedSector : s))
+                    );
+                }
+            )
+            .subscribe();
 
         return () => {
-            newSocket.disconnect();
+            supabase.removeChannel(channel);
         };
     }, []);
 
-    const updateStatus = (sectorId: string, status: Sector['status']) => {
-        if (socket) {
-            // Envia comando para alterar status via WS que vai salvar no banco
-            socket.emit('update_status', { sectorId, status });
+    // Atualiza status via REST → Prisma atualiza DB → Supabase Realtime notifica todos
+    const updateStatus = async (sectorId: string, status: Sector['status']) => {
+        const token = localStorage.getItem('@RecepcaoSesa:token');
+        try {
+            await fetch(`${API_URL}/api/sectors/${sectorId}/status`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ status })
+            });
+        } catch (err) {
+            console.error('Failed to update status:', err);
         }
     };
 
-    const updateQueue = (sectorId: string, action: 'add' | 'remove') => {
-        if (socket) {
-            socket.emit('update_queue', { sectorId, action });
+    // Atualiza fila via REST → Prisma atualiza DB → Supabase Realtime notifica todos
+    const updateQueue = async (sectorId: string, action: 'add' | 'remove') => {
+        const token = localStorage.getItem('@RecepcaoSesa:token');
+        try {
+            await fetch(`${API_URL}/api/sectors/${sectorId}/queue`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ action })
+            });
+        } catch (err) {
+            console.error('Failed to update queue:', err);
         }
     };
 

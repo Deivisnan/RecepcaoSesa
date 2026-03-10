@@ -345,7 +345,53 @@ app.patch('/api/users/:id/password', authenticateToken, requireAdmin, async (req
     }
 });
 
-// Socket.io for Real-Time Status Updates
+// --- SECTOR STATUS & QUEUE REST ENDPOINTS ---
+
+app.patch('/api/sectors/:id/status', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        const updatedSector = await prisma.sector.update({
+            where: { id },
+            data: { status },
+        });
+
+        res.json(updatedSector);
+    } catch (error) {
+        console.error('Error updating status:', error);
+        res.status(500).json({ error: 'Failed to update status' });
+    }
+});
+
+app.patch('/api/sectors/:id/queue', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { action } = req.body; // 'add' | 'remove'
+
+        const currentSector = await prisma.sector.findUnique({ where: { id } });
+        if (!currentSector) return res.status(404).json({ error: 'Sector not found' });
+
+        let newCount = currentSector.queueCount;
+        if (action === 'add') {
+            newCount++;
+        } else if (action === 'remove' && newCount > 0) {
+            newCount--;
+        }
+
+        const updatedSector = await prisma.sector.update({
+            where: { id },
+            data: { queueCount: newCount },
+        });
+
+        res.json(updatedSector);
+    } catch (error) {
+        console.error('Error updating queue:', error);
+        res.status(500).json({ error: 'Failed to update queue' });
+    }
+});
+
+// Socket.io for Real-Time Status Updates (legacy - kept for reference)
 io.on('connection', (socket) => {
     console.log('Client connected:', socket.id);
 
