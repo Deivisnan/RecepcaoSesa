@@ -199,7 +199,7 @@ app.post('/api/visits', authenticateToken, async (req, res) => {
 
 app.get('/api/visits', authenticateToken, async (req, res) => {
     try {
-        const { date, filterType, code, cpf } = req.query;
+        const { date, filterType, code, cpf, sectorId, ticketStatus } = req.query;
 
         let queryOptions: any = {
             include: {
@@ -207,23 +207,28 @@ app.get('/api/visits', authenticateToken, async (req, res) => {
                 sector: true,
                 user: { select: { email: true } }
             },
-            orderBy: { timestamp: 'desc' }
+            orderBy: { timestamp: 'desc' },
+            where: {}
         };
+
+        if (sectorId) {
+            queryOptions.where.sectorId = sectorId as string;
+        }
+
+        if (ticketStatus) {
+            queryOptions.where.ticketStatus = ticketStatus as string;
+        }
 
         // Search by ticket code
         if (code) {
-            queryOptions.where = {
-                code: { contains: code as string, mode: 'insensitive' }
-            };
+            queryOptions.where.code = { contains: code as string, mode: 'insensitive' };
             const visits = await prisma.visit.findMany(queryOptions);
             return res.json(visits);
         }
 
         // Search by CPF
         if (cpf) {
-            queryOptions.where = {
-                citizenId: { contains: cpf as string }
-            };
+            queryOptions.where.citizenId = { contains: cpf as string };
             const visits = await prisma.visit.findMany(queryOptions);
             return res.json(visits);
         }
@@ -249,17 +254,14 @@ app.get('/api/visits', authenticateToken, async (req, res) => {
                 endDate.setDate(0);
                 endDate.setHours(23, 59, 59, 999);
             }
-            queryOptions.where = {
-                timestamp: { gte: startDate, lte: endDate }
-            };
-        } else {
+            queryOptions.where.timestamp = { gte: startDate, lte: endDate };
+        } else if (!code && !cpf && !ticketStatus) {
+            // Only strictly default to today if we aren't specifically searching by code, cpf or fetching an active ticket
             const todayStart = new Date();
             todayStart.setHours(0, 0, 0, 0);
             const todayEnd = new Date();
             todayEnd.setHours(23, 59, 59, 999);
-            queryOptions.where = {
-                timestamp: { gte: todayStart, lte: todayEnd }
-            };
+            queryOptions.where.timestamp = { gte: todayStart, lte: todayEnd };
         }
 
         const visits = await prisma.visit.findMany(queryOptions);

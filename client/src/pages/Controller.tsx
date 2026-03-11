@@ -2,9 +2,10 @@ import React, { useMemo, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRealTimeStatus } from '../useRealTimeStatus';
 import { useAuth } from '../contexts/AuthContext';
-import { LogOut, CheckCircle2, AlertTriangle, ShieldAlert, Users, PhoneCall, Hash, CheckCheck } from 'lucide-react';
+import { LogOut, CheckCircle2, AlertTriangle, ShieldAlert, Users, PhoneCall, Hash, CheckCheck, BarChart3 } from 'lucide-react';
 import { API_URL } from '../config/apiConfig';
 import { toast } from 'sonner';
+import { SectorDashboardModal } from '../components/SectorDashboardModal';
 
 const Controller: React.FC = () => {
     const { user, logout } = useAuth();
@@ -17,6 +18,7 @@ const Controller: React.FC = () => {
     const [callingNext, setCallingNext] = useState(false);
     const [cooldown, setCooldown] = useState(0);
     const [currentCitizen, setCurrentCitizen] = useState<{ name: string } | null>(null);
+    const [isDashboardOpen, setIsDashboardOpen] = useState(false);
 
     const sector = useMemo(() => {
         if (!user?.sectorName) return undefined;
@@ -84,6 +86,28 @@ const Controller: React.FC = () => {
         }
         if (sector) prevQueueRef.current = sector.queueCount;
     }, [sector?.queueCount]);
+
+    // Persist current citizen on reload
+    useEffect(() => {
+        const fetchCurrentActiveCitizen = async () => {
+            if (!sector) return;
+            try {
+                const token = localStorage.getItem('@RecepcaoSesa:token');
+                const res = await fetch(`${API_URL}/api/visits?sectorId=${sector.id}&ticketStatus=IN_SERVICE`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const visits = await res.json();
+                    if (visits.length > 0) {
+                        setCurrentCitizen({ name: visits[0].citizen.name });
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to fetch active citizen", error);
+            }
+        };
+        fetchCurrentActiveCitizen();
+    }, [sector?.id]);
 
     const handleLogout = () => {
         logout();
@@ -185,13 +209,22 @@ const Controller: React.FC = () => {
                         <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">{sector.name}</h1>
                     </div>
                 </div>
-                <button
-                    onClick={handleLogout}
-                    className="p-3 bg-slate-800/80 hover:bg-rose-500/10 hover:text-rose-400 border border-transparent hover:border-rose-500/30 rounded-xl text-slate-400 transition-all duration-300 hover:scale-105 active:scale-95 group"
-                    title="Sair do Sistema"
-                >
-                    <LogOut className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => setIsDashboardOpen(true)}
+                        className="p-3 bg-indigo-500/10 hover:bg-indigo-500/20 hover:text-indigo-300 border border-transparent hover:border-indigo-500/30 rounded-xl text-indigo-400 transition-all duration-300 hover:scale-105 active:scale-95 group"
+                        title="Análise de Dados do Setor"
+                    >
+                        <BarChart3 className="w-5 h-5 group-hover:-translate-y-0.5 transition-transform" />
+                    </button>
+                    <button
+                        onClick={handleLogout}
+                        className="p-3 bg-slate-800/80 hover:bg-rose-500/10 hover:text-rose-400 border border-transparent hover:border-rose-500/30 rounded-xl text-slate-400 transition-all duration-300 hover:scale-105 active:scale-95 group"
+                        title="Sair do Sistema"
+                    >
+                        <LogOut className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                    </button>
+                </div>
             </header>
 
             <main className="flex-1 flex flex-col items-center max-w-lg mx-auto w-full gap-5">
@@ -310,6 +343,15 @@ const Controller: React.FC = () => {
                     </form>
                 </div>
             </main>
+
+            {sector && (
+                <SectorDashboardModal
+                    isOpen={isDashboardOpen}
+                    onClose={() => setIsDashboardOpen(false)}
+                    sectorId={sector.id}
+                    sectorName={sector.name}
+                />
+            )}
         </div>
     );
 };
