@@ -11,6 +11,7 @@ interface AttendanceTabProps {
 export const AttendanceTab: React.FC<AttendanceTabProps> = ({ sectors }) => {
     const [cpf, setCpf] = useState('');
     const [name, setName] = useState('');
+    const [phone, setPhone] = useState('');
     const [selectedSector, setSelectedSector] = useState('');
     const [loading, setLoading] = useState(false);
     const [searchingCpf, setSearchingCpf] = useState(false);
@@ -27,7 +28,25 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ sectors }) => {
         const formatted = formatCpf(e.target.value);
         setCpf(formatted);
         if (formatted.length === 14) searchCitizen(formatted);
-        else setName('');
+        else {
+            setName('');
+            setPhone('');
+        }
+    };
+
+    const formatPhone = (val: string) => {
+        const digits = val.replace(/\D/g, '');
+        if (digits.length <= 10) {
+            return digits.replace(/(\d{2})(\d)/, '($1) $2')
+                .replace(/(\d{4})(\d)/, '$1-$2');
+        }
+        return digits.replace(/(\d{2})(\d)/, '($1) $2')
+            .replace(/(\d{5})(\d)/, '$1-$2')
+            .slice(0, 15);
+    };
+
+    const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setPhone(formatPhone(e.target.value));
     };
 
     const searchCitizen = async (searchCpf: string) => {
@@ -40,6 +59,7 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ sectors }) => {
             if (res.ok) {
                 const data = await res.json();
                 setName(data.name);
+                setPhone(data.phone || '');
                 toast.success(`Cidadão encontrado: ${data.name}`);
             }
         } catch (error) {
@@ -127,7 +147,7 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ sectors }) => {
             const res = await fetch(`${API_URL}/api/visits`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ cpf, name, sectorId: selectedSector })
+                body: JSON.stringify({ cpf, name, phone, sectorId: selectedSector })
             });
 
             if (res.ok) {
@@ -145,6 +165,7 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ sectors }) => {
 
                 setCpf('');
                 setName('');
+                setPhone('');
                 setSelectedSector('');
             } else {
                 const err = await res.json();
@@ -195,6 +216,18 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ sectors }) => {
                                 placeholder="Nome Completo do Cidadão"
                                 className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                                 required
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-slate-400 text-sm font-medium mb-2">Telefone (Opcional)</label>
+                            <input
+                                type="text"
+                                value={phone}
+                                onChange={handlePhoneChange}
+                                placeholder="(00) 00000-0000"
+                                maxLength={15}
+                                className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                             />
                         </div>
                     </div>

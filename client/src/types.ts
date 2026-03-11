@@ -16,7 +16,7 @@ export interface Visit {
     citizenId: string;
     sectorId: string;
     timestamp: string;
-    citizen: { cpf: string; name: string };
+    citizen: { cpf: string; name: string; phone?: string | null };
     sector: { id: string; name: string; soundUrl?: string };
 }
 
@@ -27,6 +27,6 @@ export interface Ticket {
     citizenId: string;
     sectorId: string;
     timestamp: string;
-    citizen: { cpf: string; name: string };
+    citizen: { cpf: string; name: string; phone?: string | null };
     sector: { id: string; name: string; soundUrl?: string };
 }

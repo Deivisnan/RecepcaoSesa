@@ -143,7 +143,7 @@ app.get('/api/citizens/:cpf', authenticateToken, async (req, res) => {
 
 app.post('/api/visits', authenticateToken, async (req, res) => {
     try {
-        const { cpf, name, sectorId } = req.body;
+        const { cpf, name, phone, sectorId } = req.body;
         const userId = (req as any).user.id;
 
         // Verify sector is not AWAY
@@ -156,8 +156,8 @@ app.post('/api/visits', authenticateToken, async (req, res) => {
         // Create or find citizen
         const citizen = await prisma.citizen.upsert({
             where: { cpf },
-            update: { name },
-            create: { cpf, name }
+            update: { name, phone },
+            create: { cpf, name, phone }
         });
 
         // Generate unique ticket code (A-001 format)

@@ -44,6 +44,7 @@ model Sector {
 model Citizen {
   cpf       String   @id
   name      String
+  phone     String?
   visits    Visit[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
