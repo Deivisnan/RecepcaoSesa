@@ -160,17 +160,27 @@ app.post('/api/visits', authenticateToken, async (req, res) => {
             create: { cpf, name, phone }
         });
 
-        // Generate unique ticket code (A-001 format)
+        // Generate unique ticket code with sector prefix
         const startOfDay = new Date();
         startOfDay.setHours(0, 0, 0, 0);
+
+        // Count visits today FOR THIS SECTOR specifically
         const todayCount = await prisma.visit.count({
-            where: { timestamp: { gte: startOfDay } }
+            where: {
+                timestamp: { gte: startOfDay },
+                sectorId: sectorId
+            }
         });
+
+        // Extract up to 3 letters from sector name for the prefix
+        const prefix = sector.name
+            .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // remove accents
+            .replace(/[^a-zA-Z]/g, '') // remove non-letters
+            .substring(0, 3)
+            .toUpperCase() || 'GER'; // fallback to GER if no letters
+
         const ticketNum = todayCount + 1;
-        const letterIndex = Math.floor((ticketNum - 1) / 999);
-        const numPart = ((ticketNum - 1) % 999) + 1;
-        const letter = letterIndex < 26 ? String.fromCharCode(65 + letterIndex) : 'Z';
-        const code = `${letter}-${String(numPart).padStart(3, '0')}`;
+        const code = `${prefix}-${String(ticketNum).padStart(3, '0')}`;
 
         // Create visit
         const visit = await prisma.visit.create({

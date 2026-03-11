@@ -161,6 +161,10 @@ const Controller: React.FC = () => {
                 toast.success(`Ticket ${checkoutCode.toUpperCase()} finalizado!`);
                 setCheckoutCode('');
                 setCurrentCitizen(null); // Clear the active citizen on checkout
+
+                // Clear cooldown immediately on checkout to allow calling next
+                setCooldown(0);
+                localStorage.removeItem(`@RecepcaoSesa:cooldown:${sector.id}`);
             } else {
                 const err = await res.json();
                 toast.error(err.error || 'Código não encontrado');
@@ -255,21 +259,29 @@ const Controller: React.FC = () => {
                 {/* Chamar Próximo */}
                 <button
                     onClick={handleCallNext}
-                    disabled={callingNext || sector.queueCount === 0 || cooldown > 0}
-                    className={`w-full group relative overflow-hidden flex flex-col items-center justify-center gap-2 p-6 rounded-2xl font-bold transition-all duration-300 active:scale-[0.98] ${cooldown > 0
-                        ? 'bg-slate-800 border-2 border-slate-700 text-slate-500 cursor-not-allowed'
-                        : sector.queueCount === 0
-                            ? 'bg-slate-800/50 border-2 border-slate-700/50 text-slate-500 cursor-not-allowed'
-                            : 'bg-indigo-600 border-2 border-indigo-500 text-white hover:bg-indigo-500 hover:-translate-y-1 hover:shadow-[0_10px_40px_-10px_rgba(79,70,229,0.6)] cursor-pointer'
+                    disabled={callingNext || sector.queueCount === 0 || cooldown > 0 || sector.status !== 'AVAILABLE'}
+                    className={`w-full group relative overflow-hidden flex flex-col items-center justify-center gap-2 p-6 rounded-2xl font-bold transition-all duration-300 active:scale-[0.98] ${sector.status !== 'AVAILABLE'
+                            ? 'bg-slate-800 border-2 border-slate-700 text-slate-500 cursor-not-allowed'
+                            : cooldown > 0
+                                ? 'bg-slate-800 border-2 border-slate-700 text-slate-500 cursor-not-allowed'
+                                : sector.queueCount === 0
+                                    ? 'bg-slate-800/50 border-2 border-slate-700/50 text-slate-500 cursor-not-allowed'
+                                    : 'bg-indigo-600 border-2 border-indigo-500 text-white hover:bg-indigo-500 hover:-translate-y-1 hover:shadow-[0_10px_40px_-10px_rgba(79,70,229,0.6)] cursor-pointer'
                         }`}
                 >
                     <div className="flex items-center gap-3 relative z-10">
-                        <PhoneCall className={`w-7 h-7 transition-transform duration-300 ${cooldown > 0 || sector.queueCount === 0 ? 'opacity-30' : 'group-hover:scale-110 group-hover:rotate-12'}`} />
+                        <PhoneCall className={`w-7 h-7 transition-transform duration-300 ${cooldown > 0 || sector.queueCount === 0 || sector.status !== 'AVAILABLE' ? 'opacity-30' : 'group-hover:scale-110 group-hover:rotate-12'}`} />
                         <span className="text-xl tracking-wide">
-                            {callingNext ? 'Chamando...' : cooldown > 0 ? 'Aguarde para chamar' : 'Chamar Próximo'}
+                            {sector.status !== 'AVAILABLE'
+                                ? 'Mude o status para Livre'
+                                : callingNext
+                                    ? 'Chamando...'
+                                    : cooldown > 0
+                                        ? 'Aguarde para chamar'
+                                        : 'Chamar Próximo'}
                         </span>
                     </div>
-                    {cooldown > 0 && (
+                    {cooldown > 0 && sector.status === 'AVAILABLE' && (
                         <span className="relative z-10 text-sm font-mono bg-slate-900/80 px-4 py-1.5 rounded-full border border-slate-700 text-indigo-400 shadow-inner">
                             Disponível em ⏱ {Math.floor(cooldown / 60)}:{(cooldown % 60).toString().padStart(2, '0')}
                         </span>
