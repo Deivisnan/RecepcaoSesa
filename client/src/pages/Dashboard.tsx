@@ -14,34 +14,34 @@ const SectorCard = ({ sector }: { sector: Sector }) => {
         switch (status) {
             case 'AVAILABLE':
                 return {
-                    icon: <Unlock className="w-16 h-16 text-emerald-500 fill-emerald-500/20" />,
-                    color: 'border-emerald-500/30 bg-emerald-500/5',
+                    icon: <Unlock className="w-14 h-14 text-emerald-400 group-hover:scale-110 transition-transform duration-500 drop-shadow-[0_0_15px_rgba(16,185,129,0.3)]" />,
+                    color: 'border-emerald-500/20 bg-emerald-500/5',
                     text: 'LIVRE',
-                    textColor: 'text-emerald-500',
-                    shadow: 'shadow-[0_8px_32px_rgba(16,185,129,0.15)]'
+                    textColor: 'text-emerald-400',
+                    shadow: 'hover:shadow-[0_20px_40px_-15px_rgba(16,185,129,0.2)]'
                 };
             case 'BUSY':
                 return {
-                    icon: <Lock className="w-16 h-16 text-rose-500 fill-rose-500/20" />,
-                    color: 'border-rose-500/30 bg-rose-500/5',
+                    icon: <Lock className="w-14 h-14 text-rose-400 group-hover:scale-110 transition-transform duration-500" />,
+                    color: 'border-rose-500/20 bg-rose-500/5',
                     text: 'OCUPADO',
-                    textColor: 'text-rose-500',
-                    shadow: 'shadow-[0_8px_32px_rgba(244,63,94,0.15)]'
+                    textColor: 'text-rose-400',
+                    shadow: 'hover:shadow-[0_20px_40px_-15px_rgba(244,63,94,0.2)]'
                 };
             case 'AWAY':
                 return {
-                    icon: <Lock className="w-16 h-16 text-amber-500 fill-amber-500/20" />,
-                    color: 'border-amber-500/30 bg-amber-500/5',
+                    icon: <Lock className="w-14 h-14 text-amber-400 group-hover:scale-110 transition-transform duration-500" />,
+                    color: 'border-amber-500/20 bg-amber-500/5',
                     text: 'AUSENTE',
-                    textColor: 'text-amber-500',
-                    shadow: 'shadow-[0_8px_32px_rgba(245,158,11,0.15)]'
+                    textColor: 'text-amber-400',
+                    shadow: 'hover:shadow-[0_20px_40px_-15px_rgba(245,158,11,0.2)]'
                 };
             default:
                 return {
                     icon: null,
-                    color: 'border-slate-700 bg-slate-800',
+                    color: 'border-slate-800 bg-slate-800/50',
                     text: 'DESCONHECIDO',
-                    textColor: 'text-slate-400',
+                    textColor: 'text-slate-500',
                     shadow: ''
                 };
         }
@@ -50,19 +50,24 @@ const SectorCard = ({ sector }: { sector: Sector }) => {
     const config = getStatusConfig(sector.status);
 
     return (
-        <div className={`rounded-2xl p-6 flex flex-col items-center justify-center text-center border transition-all duration-300 relative ${config.color} ${config.shadow} hover:-translate-y-1`}>
+        <div className={`rounded-[2rem] p-8 flex flex-col items-center justify-center text-center border transition-all duration-500 relative backdrop-blur-xl group ${config.color} ${config.shadow} hover:-translate-y-2`}>
             {/* Queue Badge Indicator */}
             {sector.queueCount > 0 && (
-                <div className="absolute -top-3 -right-3 bg-indigo-600 border-4 border-slate-900 text-white w-12 h-12 rounded-full flex items-center justify-center shadow-lg font-bold">
-                    <Users className="w-4 h-4 mr-1 opacity-70" /> {sector.queueCount}
+                <div className="absolute -top-4 -right-4 bg-gradient-to-br from-indigo-500 to-purple-600 border-[6px] border-slate-900 text-white w-14 h-14 rounded-full flex items-center justify-center shadow-2xl font-bold transition-transform group-hover:scale-110">
+                    <Users className="w-4 h-4 mr-0.5" /> <span className="text-lg">{sector.queueCount}</span>
                 </div>
             )}
 
-            <h2 className="text-xl font-semibold mb-6 text-slate-100">{sector.name}</h2>
-            <div className="mb-4">
-                {config.icon}
+            <h2 className="text-xl font-bold mb-8 text-white tracking-wide">{sector.name}</h2>
+
+            <div className="mb-6 relative">
+                <div className={`absolute inset-0 blur-2xl opacity-40 mix-blend-screen bg-current ${config.textColor}`}></div>
+                <div className="relative bg-slate-900/50 p-6 rounded-3xl border border-white/5 shadow-inner">
+                    {config.icon}
+                </div>
             </div>
-            <span className={`text-lg font-bold tracking-widest ${config.textColor}`}>
+
+            <span className={`text-[11px] font-black tracking-[0.3em] uppercase mb-8 ${config.textColor}`}>
                 {config.text}
             </span>
 
@@ -175,55 +180,52 @@ const Dashboard: React.FC = () => {
     return (
         <div className="min-h-screen bg-slate-900 text-slate-50 p-6 md:p-10 font-sans selection:bg-indigo-500/30 print:p-0 print:bg-white">
             <div className="max-w-[1600px] mx-auto print:hidden">
-                <header className="flex flex-col md:flex-row justify-between items-center mb-8 gap-6 border-b border-slate-800 pb-8">
-                    <div className="flex items-center gap-4">
-                        <img src="/logo.png" alt="Logo Prefeitura" className="h-12 object-contain" />
+                <header className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
+                    <div className="flex items-center gap-5">
+                        <div className="bg-white p-3 rounded-2xl shadow-lg shadow-white/5">
+                            <img src="/logo.png" alt="Logo Prefeitura" className="h-12 w-[100px] object-contain" />
+                        </div>
                         <div>
-                            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent mb-2">
+                            <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight mb-1">
                                 Recepção Sesa
                             </h1>
-                            <p className="text-slate-400 text-lg">Controle de Fluxo e Atendimento</p>
+                            <p className="text-slate-400 text-sm font-medium">Gestão de Fluxo e Atendimentos</p>
                         </div>
                     </div>
 
                     <button
                         onClick={handleLogout}
-                        className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-slate-300 transition-colors"
+                        className="flex items-center gap-2 px-5 py-2.5 bg-slate-800/50 hover:bg-rose-500/10 border border-slate-700 hover:border-rose-500/30 rounded-xl text-slate-300 hover:text-rose-400 transition-all font-bold text-sm shadow-sm"
                     >
-                        <LogOut className="w-5 h-5" />
-                        <span className="font-medium">Sair</span>
+                        Sair do Sistema <LogOut className="w-4 h-4 ml-1" />
                     </button>
                 </header>
 
                 {/* TABS NAVIGATION */}
-                <div className="flex gap-2 mb-8 bg-slate-800/50 p-1.5 rounded-xl border border-slate-700/50 w-fit mx-auto md:mx-0">
+                <div className="flex flex-wrap items-center gap-2 mb-10 bg-slate-800/40 p-2 rounded-2xl border border-slate-700/50 backdrop-blur-md w-fit shadow-xl">
                     <button
                         onClick={() => setActiveTab('attendance')}
-                        className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${activeTab === 'attendance' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                        className={`flex items-center gap-2.5 px-6 py-3 rounded-xl text-sm font-bold transition-all duration-300 ${activeTab === 'attendance' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 scale-105' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}
                     >
-                        <UserCheck className="w-5 h-5" />
-                        Atendimento
+                        <UserCheck className="w-4 h-4" /> Atendimento
                     </button>
                     <button
                         onClick={() => setActiveTab('panel')}
-                        className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${activeTab === 'panel' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                        className={`flex items-center gap-2.5 px-6 py-3 rounded-xl text-sm font-bold transition-all duration-300 ${activeTab === 'panel' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 scale-105' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}
                     >
-                        <LayoutDashboard className="w-5 h-5" />
-                        Painel de Salas
+                        <LayoutDashboard className="w-4 h-4" /> Painel de Setores
                     </button>
                     <button
                         onClick={() => setActiveTab('flow')}
-                        className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${activeTab === 'flow' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                        className={`flex items-center gap-2.5 px-6 py-3 rounded-xl text-sm font-bold transition-all duration-300 ${activeTab === 'flow' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 scale-105' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}
                     >
-                        <History className="w-5 h-5" />
-                        Fluxo de Chamados
+                        <History className="w-4 h-4" /> Registro de Chamadas
                     </button>
                     <button
                         onClick={() => setActiveTab('history')}
-                        className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${activeTab === 'history' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                        className={`flex items-center gap-2.5 px-6 py-3 rounded-xl text-sm font-bold transition-all duration-300 ${activeTab === 'history' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 scale-105' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}
                     >
-                        <Search className="w-5 h-5" />
-                        Métricas e Histórico
+                        <Search className="w-4 h-4" /> Pesquisa & Métricas
                     </button>
                 </div>
 

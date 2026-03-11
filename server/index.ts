@@ -23,6 +23,42 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
+// Daily Queue Reset Middleware
+let lastResetDate = new Date().getDate();
+
+app.use(async (req, res, next) => {
+    const today = new Date().getDate();
+    if (today !== lastResetDate) {
+        lastResetDate = today;
+        console.log('[Daily Reset] Dia virou. Resetando filas e expirando tickets pendentes...');
+        try {
+            // 1. Reset all sector queue counts
+            await prisma.sector.updateMany({
+                data: { queueCount: 0 }
+            });
+
+            // 2. Expire all WAITING tickets from previous days
+            const startOfToday = new Date();
+            startOfToday.setHours(0, 0, 0, 0);
+
+            await prisma.visit.updateMany({
+                where: {
+                    ticketStatus: 'WAITING',
+                    timestamp: { lt: startOfToday }
+                },
+                data: { ticketStatus: 'EXPIRED' }
+            });
+            console.log('[Daily Reset] Concluído.');
+
+            // Notify clients of queue reset
+            io.emit('queue_reset');
+        } catch (error) {
+            console.error('[Daily Reset] Erro:', error);
+        }
+    }
+    next();
+});
+
 // API Routes
 app.get('/', (req, res) => {
     res.send(`
@@ -393,9 +429,16 @@ app.post('/api/sectors/:id/call-next', authenticateToken, async (req, res) => {
     try {
         const sectorId = req.params.id as string;
 
-        // Get next WAITING visit in FIFO order
+        // Get next WAITING visit in FIFO order (only from TODAY)
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+
         const nextVisit = await prisma.visit.findFirst({
-            where: { sectorId, ticketStatus: 'WAITING' },
+            where: {
+                sectorId,
+                ticketStatus: 'WAITING',
+                timestamp: { gte: startOfToday }
+            },
             orderBy: { timestamp: 'asc' },
             include: { citizen: true, sector: true }
         });

@@ -179,93 +179,100 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ sectors }) => {
     };
 
     return (
-        <div className="space-y-6 max-w-3xl mx-auto">
+        <div className="space-y-6 max-w-4xl mx-auto">
             {/* REGISTRO */}
-            <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 md:p-8 shadow-xl">
-                <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-                    <UserPlus className="text-indigo-400" />
-                    Novo Atendimento
+            <div className="bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 rounded-3xl p-8 md:p-12 shadow-2xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 pointer-events-none"></div>
+
+                <h2 className="text-3xl font-black text-white mb-10 flex items-center gap-4 relative z-10">
+                    <div className="p-3 bg-indigo-500/10 rounded-2xl border border-indigo-500/20 shadow-inner">
+                        <UserPlus className="w-7 h-7 text-indigo-400" />
+                    </div>
+                    Registro de Cidadão
                 </h2>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <form onSubmit={handleSubmit} className="space-y-8 relative z-10">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div>
-                            <label className="block text-slate-400 text-sm font-medium mb-2">CPF do Cidadão</label>
-                            <div className="relative">
+                            <label className="block text-slate-400 text-sm font-bold tracking-wide uppercase mb-3 ml-1">CPF do Cidadão</label>
+                            <div className="relative group">
                                 <input
                                     type="text"
                                     value={cpf}
                                     onChange={handleCpfChange}
                                     placeholder="000.000.000-00"
                                     maxLength={14}
-                                    className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                    className="w-full bg-slate-900/50 border border-slate-700 text-white rounded-2xl px-5 py-4 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-600 font-medium font-mono text-lg shadow-inner group-hover:border-slate-600"
                                     required
                                 />
                                 {searchingCpf && (
-                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs animate-pulse">Buscando...</div>
+                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-indigo-400 text-xs font-bold animate-pulse bg-indigo-500/10 px-2 py-1 rounded-md border border-indigo-500/20">Buscando...</div>
                                 )}
                             </div>
                         </div>
 
                         <div>
-                            <label className="block text-slate-400 text-sm font-medium mb-2">Nome Completo</label>
+                            <label className="block text-slate-400 text-sm font-bold tracking-wide uppercase mb-3 ml-1">Nome Completo</label>
                             <input
                                 type="text"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 placeholder="Nome Completo do Cidadão"
-                                className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                className="w-full bg-slate-900/50 border border-slate-700 text-white rounded-2xl px-5 py-4 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-600 font-medium text-lg shadow-inner hover:border-slate-600"
                                 required
                             />
                         </div>
 
-                        <div>
-                            <label className="block text-slate-400 text-sm font-medium mb-2">Telefone (Opcional)</label>
+                        <div className="md:col-span-2 lg:col-span-1">
+                            <label className="block text-slate-400 text-sm font-bold tracking-wide uppercase mb-3 ml-1">Telefone (Opcional)</label>
                             <input
                                 type="text"
                                 value={phone}
                                 onChange={handlePhoneChange}
                                 placeholder="(00) 00000-0000"
                                 maxLength={15}
-                                className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                className="w-full bg-slate-900/50 border border-slate-700 text-white rounded-2xl px-5 py-4 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-600 font-medium font-mono text-lg shadow-inner hover:border-slate-600"
                             />
+                        </div>
+
+                        {/* SETOR */}
+                        <div className="md:col-span-2 lg:col-span-1">
+                            <label className="block text-slate-400 text-sm font-bold tracking-wide uppercase mb-3 ml-1">Setor de Destino</label>
+                            <select
+                                value={selectedSector}
+                                onChange={(e) => setSelectedSector(e.target.value)}
+                                className={`w-full bg-slate-900/50 border border-slate-700 text-white rounded-2xl px-5 py-4 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all appearance-none font-medium text-lg shadow-inner hover:border-slate-600 cursor-pointer ${!selectedSector ? 'text-slate-500' : ''}`}
+                                required
+                            >
+                                <option value="" disabled>Selecione um Setor...</option>
+                                {sectors.map(s => (
+                                    <option key={s.id} value={s.id} disabled={s.status === 'AWAY'} className="text-white bg-slate-800">
+                                        {s.name} — {s.status === 'AVAILABLE' ? '✅ Livre' : s.status === 'BUSY' ? '🔴 Ocupado' : '⚠️ Ausente (bloqueado)'}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
                     </div>
 
-                    {/* SETOR */}
-                    <div>
-                        <label className="block text-slate-400 text-sm font-medium mb-2">Setor de Destino</label>
-                        <select
-                            value={selectedSector}
-                            onChange={(e) => setSelectedSector(e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none transition-all appearance-none"
-                            required
-                        >
-                            <option value="" disabled>Selecione um Setor...</option>
-                            {sectors.map(s => (
-                                <option key={s.id} value={s.id} disabled={s.status === 'AWAY'}>
-                                    {s.name} — {s.status === 'AVAILABLE' ? '✅ Livre' : s.status === 'BUSY' ? '🔴 Ocupado' : '⚠️ Ausente (bloqueado)'}
-                                </option>
-                            ))}
-                        </select>
+                    {isAwayBlocked && (
+                        <div className="bg-amber-500/10 border border-amber-500/20 text-amber-500 p-4 rounded-2xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2">
+                            <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+                            <p className="text-sm font-medium">O setor selecionado está ausente e não pode receber novos cidadãos no momento.</p>
+                        </div>
+                    )}
 
-                        {isAwayBlocked && (
-                            <div className="mt-3 flex items-center gap-2 bg-amber-500/10 border border-amber-500/40 text-amber-400 px-4 py-3 rounded-lg text-sm">
-                                <AlertTriangle className="w-4 h-4 shrink-0" />
-                                <span><strong>Setor Ausente.</strong> Não é possível adicionar cidadãos à fila deste setor no momento.</span>
-                            </div>
+                    <button
+                        type="submit"
+                        disabled={loading || isAwayBlocked}
+                        className="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white tracking-wide font-black py-5 rounded-2xl flex items-center justify-center gap-3 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-[0_15px_40px_-10px_rgba(79,70,229,0.6)] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none mt-8 text-xl border border-indigo-400/20"
+                    >
+                        {loading ? 'Gerando Ticket...' : (
+                            <>
+                                <Printer className="w-6 h-6" />
+                                GERAR TICKET DE ATENDIMENTO
+                            </>
                         )}
-                    </div>
-
-                    <div className="pt-2 flex justify-end">
-                        <button
-                            type="submit"
-                            disabled={loading || isAwayBlocked}
-                            className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-700 disabled:cursor-not-allowed text-white px-8 py-4 rounded-xl font-bold flex items-center gap-3 transition-all shadow-lg shadow-indigo-600/20"
-                        >
-                            {loading ? 'Registrando...' : (<><Printer className="w-5 h-5" />Registrar e Imprimir Ticket</>)}
-                        </button>
-                    </div>
+                    </button>
                 </form>
             </div>
         </div>

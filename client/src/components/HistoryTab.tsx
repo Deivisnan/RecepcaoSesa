@@ -116,7 +116,8 @@ export const HistoryTab: React.FC = () => {
                    <div class="footer">
                        <div>Data: ${new Date(visit.timestamp).toLocaleDateString('pt-BR')}</div>
                        <div>Hora: ${new Date(visit.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div>
-                       <div style="margin-top: 10px; font-style: italic;">* REIMPRESSÃO *</div>
+                       <div style="margin-top: 10px; font-style: italic;">Aguarde ser chamado.</div>
+                       <div style="margin-top: 5px; font-style: italic; font-size: 9px;">* REIMPRESSÃO *</div>
                    </div>
                </div>
             </body>
@@ -320,15 +321,31 @@ export const HistoryTab: React.FC = () => {
                                             <div className="text-slate-500 text-xs">{new Date(visit.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div>
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            <button
-                                                onClick={() => handleReprint(visit)}
-                                                disabled={!visit.code}
-                                                className={`p-2.5 rounded-xl transition-all border flex items-center gap-2 ml-auto ${!visit.code ? 'bg-slate-700/50 text-slate-500 border-slate-700/50 cursor-not-allowed' : 'bg-indigo-600/10 hover:bg-indigo-600 text-indigo-400 hover:text-white border-indigo-500/20'}`}
-                                                title={visit.code ? "Reimprimir Ticket (Sem CPF)" : "Não disponível para este registro"}
-                                            >
-                                                <Printer className="w-4 h-4" />
-                                                <span className="text-xs font-bold uppercase tracking-tighter">Reimprimir</span>
-                                            </button>
+                                            {(() => {
+                                                const fifteenMinutesAgo = Date.now() - 15 * 60 * 1000;
+                                                const visitTime = new Date(visit.timestamp).getTime();
+                                                const isExpired = visitTime < fifteenMinutesAgo;
+                                                const isDisabled = !visit.code || isExpired;
+
+                                                let buttonTitle = "Reimprimir Ticket";
+                                                if (!visit.code) buttonTitle = "Não disponível para este registro";
+                                                else if (isExpired) buttonTitle = "Apenas possível reimprimir até 15 minutos depois do registro";
+
+                                                return (
+                                                    <button
+                                                        onClick={() => handleReprint(visit)}
+                                                        disabled={isDisabled}
+                                                        className={`p-2.5 rounded-xl transition-all border flex items-center gap-2 ml-auto ${isDisabled
+                                                                ? 'bg-slate-700/50 text-slate-500 border-slate-700/50 cursor-not-allowed opacity-50'
+                                                                : 'bg-indigo-600/10 hover:bg-indigo-600 text-indigo-400 hover:text-white border-indigo-500/20'
+                                                            }`}
+                                                        title={buttonTitle}
+                                                    >
+                                                        <Printer className="w-4 h-4" />
+                                                        <span className="text-xs font-bold uppercase tracking-tighter">Reimprimir</span>
+                                                    </button>
+                                                );
+                                            })()}
                                         </td>
                                     </tr>
                                 ))
