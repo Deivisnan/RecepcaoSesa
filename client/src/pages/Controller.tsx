@@ -349,8 +349,8 @@ const Controller: React.FC = () => {
                                 type="text"
                                 value={checkoutCode}
                                 onChange={(e) => setCheckoutCode(e.target.value.toUpperCase())}
-                                placeholder="CÓDIGO (EX: A-045)"
-                                maxLength={6}
+                                placeholder="CÓDIGO (EX: GAB-014)"
+                                maxLength={10}
                                 className="w-full bg-slate-900 border-2 border-slate-700 text-white rounded-xl pl-12 pr-4 py-3 focus:ring-emerald-500 focus:border-emerald-500 outline-none font-mono tracking-widest uppercase transition-all placeholder:text-slate-600"
                             />
                         </div>
