@@ -167,7 +167,7 @@ const Controller: React.FC = () => {
         setCheckoutLoading(true);
         try {
             const token = localStorage.getItem('@RecepcaoSesa:token');
-            const res = await fetch(`${API_URL}/api/visits/${checkoutCode.toUpperCase()}/checkout`, {
+            const res = await fetch(`${API_URL}/api/visits/${checkoutCode.toUpperCase().trim()}/checkout`, {
                 method: 'PATCH',
                 headers: { 'Authorization': `Bearer ${token}` }
             });

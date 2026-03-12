@@ -137,10 +137,15 @@ const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
 
-    if (!token) return res.status(401).json({ error: 'Access denied. No token provided.' });
+    if (!token || token === 'null' || token === 'undefined') {
+        return res.status(401).json({ error: 'Access denied. Token missing or invalid (null/undefined).' });
+    }
 
     jwt.verify(token, JWT_SECRET, (err, decodedUser) => {
-        if (err) return res.status(403).json({ error: 'Invalid token.' });
+        if (err) {
+            console.error('[Auth] JWT Verify Error:', err.message);
+            return res.status(403).json({ error: 'Invalid token.', details: err.message });
+        }
         (req as any).user = decodedUser;
         next();
     });
@@ -504,9 +509,9 @@ app.patch('/api/visits/:code/checkout', authenticateToken, async (req, res) => {
             include: { sector: true }
         });
 
-        if (!visit) return res.status(404).json({ error: 'Ticket não encontrado.' });
-        if (visit.ticketStatus === 'FINISHED') return res.status(400).json({ error: 'Ticket já finalizado.' });
-        if (visit.ticketStatus === 'EXPIRED') return res.status(400).json({ error: 'Ticket expirado.' });
+        if (!visit) return res.status(404).json({ error: `Ticket [${code}] não encontrado no banco de dados.` });
+        if (visit.ticketStatus === 'FINISHED') return res.status(400).json({ error: `Ticket [${code}] já foi finalizado anteriormente.` });
+        if (visit.ticketStatus === 'EXPIRED') return res.status(400).json({ error: `Ticket [${code}] expirou por ser de um dia anterior.` });
 
         // Mark as finished
         const updated = await prisma.visit.update({

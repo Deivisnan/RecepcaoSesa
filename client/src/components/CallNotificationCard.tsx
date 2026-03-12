@@ -43,9 +43,17 @@ const CallNotificationCard: React.FC = () => {
 
                             // Play sound
                             if (sector.soundUrl) {
-                                if (audioRef.current) audioRef.current.pause();
-                                audioRef.current = new Audio(sector.soundUrl);
-                                audioRef.current.play().catch(() => { });
+                                // Since soundUrl exists, we should ideally fetch it and decode it via AudioContext for autoplay bypass.
+                                // But since that can get complex with CORS, we'll gracefully fallback to standard Audio but suppress the error.
+                                if (sector.soundUrl && !sector.soundUrl.includes('notification.mp3')) {
+                                    if (audioRef.current) audioRef.current.pause();
+                                    audioRef.current = new Audio(sector.soundUrl);
+                                    audioRef.current.play().catch(() => {
+                                        console.warn("Autoplay prevented custom sound playback. A user interaction is required first.");
+                                    });
+                                } else {
+                                    playDefaultChime();
+                                }
                             } else {
                                 playDefaultChime();
                             }
