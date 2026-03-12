@@ -56,25 +56,39 @@ const Controller: React.FC = () => {
     }, [sector?.id]);
 
     const prevQueueRef = useRef(sector?.queueCount || 0);
-    const audioRef = useRef<HTMLAudioElement | null>(null);
-
-    useEffect(() => {
-        // Creates the audio element; browsers relax autoplay rules slightly if it's playing a quick, user-initiated DOM action indirectly (like via Realtime).
-        audioRef.current = new Audio('/notification.mp3');
-        audioRef.current.load();
-    }, []);
+    const audioCtxRef = useRef<AudioContext | null>(null);
 
     const playNotificationSound = () => {
         try {
-            if (audioRef.current) {
-                audioRef.current.currentTime = 0;
-                const playPromise = audioRef.current.play();
-                if (playPromise !== undefined) {
-                    playPromise.catch(error => {
-                        console.warn("Autoplay prevented sound playback. A user interaction is required first.", error);
-                    });
-                }
+            if (!audioCtxRef.current) {
+                const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+                if (!AudioContext) return;
+                audioCtxRef.current = new AudioContext();
             }
+            
+            const ctx = audioCtxRef.current;
+            if (ctx.state === 'suspended') {
+                ctx.resume().catch(() => {
+                    console.warn("Autoplay prevented sound playback. A user interaction is required first.");
+                });
+            }
+
+            const playTone = (freq: number, start: number, dur: number) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, start);
+                gain.gain.setValueAtTime(0, start);
+                gain.gain.linearRampToValueAtTime(0.4, start + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.01, start + dur);
+                osc.start(start);
+                osc.stop(start + dur);
+            };
+            playTone(880, ctx.currentTime, 0.4);
+            playTone(660, ctx.currentTime + 0.3, 0.4);
+            playTone(440, ctx.currentTime + 0.6, 0.6);
         } catch (e) {
             console.warn("Sound play failed", e);
         }

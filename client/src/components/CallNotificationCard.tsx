@@ -60,11 +60,23 @@ const CallNotificationCard: React.FC = () => {
         return () => { supabase.removeChannel(channel); };
     }, []);
 
+    const audioCtxRef = useRef<AudioContext | null>(null);
+
     const playDefaultChime = () => {
         try {
-            const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-            if (!AudioContext) return;
-            const ctx = new AudioContext();
+            if (!audioCtxRef.current) {
+                const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+                if (!AudioContext) return;
+                audioCtxRef.current = new AudioContext();
+            }
+            
+            const ctx = audioCtxRef.current;
+            if (ctx.state === 'suspended') {
+                ctx.resume().catch(() => {
+                    console.warn("Autoplay prevented sound playback. A user interaction is required first.");
+                });
+            }
+            
             const playTone = (freq: number, start: number, dur: number) => {
                 const osc = ctx.createOscillator();
                 const gain = ctx.createGain();
