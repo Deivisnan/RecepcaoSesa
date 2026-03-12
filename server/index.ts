@@ -228,14 +228,9 @@ app.post('/api/visits', authenticateToken, async (req, res) => {
             create: { cpf, name, phone }
         });
 
-        // Generate unique ticket code with sector prefix
-        const startOfDay = new Date();
-        startOfDay.setHours(0, 0, 0, 0);
-
-        // Count visits today FOR THIS SECTOR specifically
-        const todayCount = await prisma.visit.count({
+        // Count ALL historical visits FOR THIS SECTOR specifically to make the code cumulative and unique
+        const totalCount = await prisma.visit.count({
             where: {
-                timestamp: { gte: startOfDay },
                 sectorId: sectorId
             }
         });
@@ -247,7 +242,7 @@ app.post('/api/visits', authenticateToken, async (req, res) => {
             .substring(0, 3)
             .toUpperCase() || 'GER'; // fallback to GER if no letters
 
-        const ticketNum = todayCount + 1;
+        const ticketNum = totalCount + 1;
         const code = `${prefix}-${String(ticketNum).padStart(3, '0')}`;
 
         // Create visit
@@ -504,18 +499,14 @@ app.patch('/api/visits/:code/checkout', authenticateToken, async (req, res) => {
     try {
         const code = req.params.code as string;
 
-        // Since codes reset daily, they are not globally unique.
-        // We find the latest ticket matching the code that is NOT finished or expired.
-        const visit = await prisma.visit.findFirst({
-            where: {
-                code,
-                ticketStatus: { in: ['WAITING', 'IN_SERVICE'] }
-            },
-            orderBy: { timestamp: 'desc' },
+        const visit = await prisma.visit.findUnique({
+            where: { code },
             include: { sector: true }
         });
 
-        if (!visit) return res.status(404).json({ error: 'Ticket não encontrado ou já finalizado.' });
+        if (!visit) return res.status(404).json({ error: 'Ticket não encontrado.' });
+        if (visit.ticketStatus === 'FINISHED') return res.status(400).json({ error: 'Ticket já finalizado.' });
+        if (visit.ticketStatus === 'EXPIRED') return res.status(400).json({ error: 'Ticket expirado.' });
 
         // Mark as finished
         const updated = await prisma.visit.update({
