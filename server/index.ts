@@ -311,32 +311,45 @@ app.get('/api/visits', authenticateToken, async (req, res) => {
             return res.json(visits);
         }
 
-        if (date && filterType) {
-            const targetDate = new Date(date as string);
-            let startDate = new Date(targetDate);
-            let endDate = new Date(targetDate);
+        if (filterType) {
+            let startDate: Date;
+            let endDate: Date;
 
-            if (filterType === 'day') {
-                startDate.setHours(0, 0, 0, 0);
-                endDate.setHours(23, 59, 59, 999);
-            } else if (filterType === 'week') {
-                const day = startDate.getDay();
-                startDate.setDate(startDate.getDate() - day);
-                startDate.setHours(0, 0, 0, 0);
-                endDate.setDate(endDate.getDate() + (6 - day));
-                endDate.setHours(23, 59, 59, 999);
-            } else if (filterType === 'month') {
-                startDate.setDate(1);
-                startDate.setHours(0, 0, 0, 0);
-                endDate.setMonth(endDate.getMonth() + 1);
-                endDate.setDate(0);
-                endDate.setHours(23, 59, 59, 999);
-            } else if (filterType === 'custom') {
+            if (filterType === 'custom') {
                 const customStart = req.query.startDate as string;
                 const customEnd = req.query.endDate as string;
                 if (customStart && customEnd) {
+                    // Using T00:00:00 to ensure date is parsed in local time/midnight correctly
                     startDate = new Date(customStart + 'T00:00:00');
                     endDate = new Date(customEnd + 'T23:59:59.999');
+                } else {
+                    // Fallback to today if custom range is missing params
+                    startDate = new Date();
+                    startDate.setHours(0, 0, 0, 0);
+                    endDate = new Date();
+                    endDate.setHours(23, 59, 59, 999);
+                }
+            } else {
+                // For day, week, month, use 'date' or default to today
+                const targetDate = date ? new Date(date as string + 'T00:00:00') : new Date();
+                startDate = new Date(targetDate);
+                endDate = new Date(targetDate);
+
+                if (filterType === 'day') {
+                    startDate.setHours(0, 0, 0, 0);
+                    endDate.setHours(23, 59, 59, 999);
+                } else if (filterType === 'week') {
+                    const day = startDate.getDay();
+                    startDate.setDate(startDate.getDate() - day);
+                    startDate.setHours(0, 0, 0, 0);
+                    endDate.setDate(endDate.getDate() + (6 - day));
+                    endDate.setHours(23, 59, 59, 999);
+                } else if (filterType === 'month') {
+                    startDate.setDate(1);
+                    startDate.setHours(0, 0, 0, 0);
+                    endDate.setMonth(endDate.getMonth() + 1);
+                    endDate.setDate(0);
+                    endDate.setHours(23, 59, 59, 999);
                 }
             }
             queryOptions.where.timestamp = { gte: startDate, lte: endDate };
