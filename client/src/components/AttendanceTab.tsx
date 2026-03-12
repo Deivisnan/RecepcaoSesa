@@ -77,13 +77,13 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ sectors }) => {
                 <style>
                     body { font-family: 'Courier New', Courier, monospace; margin: 0; padding: 20px; display: flex; justify-content: center; background: white; color: black; }
                     .ticket { width: 280px; padding: 20px; border: 2px solid #000; text-align: center; }
-                    img { width: 150px; margin-bottom: 10px; }
+                    img { width: 150px; margin-bottom: 15px; }
                     h1 { font-size: 14px; font-weight: bold; margin: 0 0 5px 0; }
                     .divider { border-top: 1px dashed #000; margin: 10px 0; }
-                    .code { font-size: 40px; font-weight: bold; margin: 10px 0; letter-spacing: 2px; }
-                    .info { font-size: 13px; margin: 5px 0; }
-                    .citizen { font-size: 14px; font-weight: bold; margin: 10px 0; text-transform: uppercase; }
-                    .footer { font-size: 11px; margin-top: 15px; color: #555; }
+                    .code { font-size: 44px; font-weight: bold; margin: 15px 0; letter-spacing: 3px; }
+                    .info { font-size: 14px; margin: 8px 0; }
+                    .citizen { font-size: 16px; font-weight: bold; margin: 12px 0; text-transform: uppercase; }
+                    .footer { font-size: 11px; margin-top: 20px; color: #333; }
                     @media print {
                         @page { margin: 0; }
                         body { margin: 0; padding: 0; }
@@ -93,9 +93,9 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ sectors }) => {
             </head>
             <body>
                <div class="ticket">
-                   <img src="${window.location.origin}/logo.png" alt="Logo">
+                   <img src="${window.location.origin}/logo.png" alt="Logo" id="logo_img">
                    <h1>SECRETARIA MUNICIPAL DE SAÚDE</h1>
-                   <p style="font-size: 10px; margin: 0;">PREFEITURA DE LAURO DE FREITAS</p>
+                   <p style="font-size: 11px; margin: 0; font-weight: 500;">PREFEITURA DE LAURO DE FREITAS</p>
                    
                    <div class="divider"></div>
                    
@@ -108,22 +108,49 @@ export const AttendanceTab: React.FC<AttendanceTabProps> = ({ sectors }) => {
                    <div class="footer">
                        <div>Data: ${data.date.toLocaleDateString('pt-BR')}</div>
                        <div>Hora: ${data.date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div>
-                       <div style="margin-top: 10px; font-style: italic;">Aguarde ser chamado.</div>
+                       <div style="margin-top: 15px; font-style: italic; font-weight: bold;">Aguarde ser chamado pela senha.</div>
                     </div>
                </div>
+               <script>
+                   function triggerPrint() {
+                       window.focus();
+                       window.print();
+                       // We don't close the window here because it's an iframe
+                   }
+                   
+                   const logo = document.getElementById('logo_img');
+                   if (logo.complete) {
+                       triggerPrint();
+                   } else {
+                       logo.onload = triggerPrint;
+                       logo.onerror = triggerPrint; // Print anyway if logo fails
+                   }
+               </script>
             </body>
             </html>
         `;
 
-        const printWindow = window.open('', '', 'width=400,height=600');
-        if (printWindow) {
-            printWindow.document.write(printContent);
-            printWindow.document.close();
-            printWindow.focus();
-            setTimeout(() => {
-                printWindow.print();
-                printWindow.close();
-            }, 250);
+        // Professional Iframe Printing Method
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = '0';
+        iframe.id = 'print-iframe';
+        
+        // Remove existing iframe if any
+        const oldIframe = document.getElementById('print-iframe');
+        if (oldIframe) document.body.removeChild(oldIframe);
+        
+        document.body.appendChild(iframe);
+        
+        const doc = iframe.contentWindow?.document || iframe.contentDocument;
+        if (doc) {
+            doc.open();
+            doc.write(printContent);
+            doc.close();
         }
     };
 
