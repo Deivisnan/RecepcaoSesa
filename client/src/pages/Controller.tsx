@@ -164,7 +164,9 @@ const Controller: React.FC = () => {
 
                 // Clear cooldown immediately on checkout to allow calling next
                 setCooldown(0);
-                localStorage.removeItem(`@RecepcaoSesa:cooldown:${sector.id}`);
+                if (sector) {
+                    localStorage.removeItem(`@RecepcaoSesa:cooldown:${sector.id}`);
+                }
             } else {
                 const err = await res.json();
                 toast.error(err.error || 'Código não encontrado');
