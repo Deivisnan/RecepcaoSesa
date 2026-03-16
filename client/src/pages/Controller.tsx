@@ -161,18 +161,31 @@ const Controller: React.FC = () => {
         }
     };
 
+    // Helper to get sector prefix (matching backend logic)
+    const sectorPrefix = useMemo(() => {
+        if (!sector?.name) return '';
+        const prefix = sector.name
+            .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // remove accents
+            .replace(/[^a-zA-Z]/g, '') // remove non-letters
+            .substring(0, 3)
+            .toUpperCase() || 'GER';
+        return `${prefix}-`;
+    }, [sector?.name]);
+
     const handleCheckout = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!checkoutCode.trim()) { toast.error('Digite o código'); return; }
+        if (!checkoutCode.trim()) { toast.error('Digite o número do ticket'); return; }
         setCheckoutLoading(true);
         try {
             const token = localStorage.getItem('@RecepcaoSesa:token');
-            const res = await fetch(`${API_URL}/api/visits/${checkoutCode.toUpperCase().trim()}/checkout`, {
+            const fullCode = `${sectorPrefix}${checkoutCode.trim().padStart(3, '0')}`;
+            
+            const res = await fetch(`${API_URL}/api/visits/${fullCode}/checkout`, {
                 method: 'PATCH',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (res.ok) {
-                toast.success(`Ticket ${checkoutCode.toUpperCase()} finalizado!`);
+                toast.success(`Ticket ${fullCode} finalizado!`);
                 setCheckoutCode('');
                 setCurrentCitizen(null); // Clear the active citizen on checkout
 
@@ -359,14 +372,21 @@ const Controller: React.FC = () => {
                     <form onSubmit={handleCheckout} className="flex flex-col sm:flex-row gap-3">
                         <div className="flex-1 relative group">
                             <Hash className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-emerald-400 transition-colors" />
-                            <input
-                                type="text"
-                                value={checkoutCode}
-                                onChange={(e) => setCheckoutCode(e.target.value.toUpperCase())}
-                                placeholder="CÓDIGO (EX: GAB-014)"
-                                maxLength={10}
-                                className="w-full bg-slate-900 border-2 border-slate-700 text-white rounded-xl pl-12 pr-4 py-3 focus:ring-emerald-500 focus:border-emerald-500 outline-none font-mono tracking-widest uppercase transition-all placeholder:text-slate-600"
-                            />
+                            <div className="flex items-center bg-slate-900 border-2 border-slate-700 rounded-xl pl-12 focus-within:border-emerald-500 transition-all">
+                                <span className="text-slate-500 font-mono font-bold select-none pr-1">
+                                    {sectorPrefix}
+                                </span>
+                                <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
+                                    value={checkoutCode}
+                                    onChange={(e) => setCheckoutCode(e.target.value.replace(/\D/g, ''))}
+                                    placeholder="000"
+                                    maxLength={4}
+                                    className="flex-1 bg-transparent text-white py-3 outline-none font-mono tracking-widest uppercase placeholder:text-slate-600 mr-4"
+                                />
+                            </div>
                         </div>
                         <button
                             type="submit"
