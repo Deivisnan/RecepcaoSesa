@@ -86,7 +86,7 @@ export const HistoryTab: React.FC = () => {
                     * { box-sizing: border-box; -webkit-print-color-adjust: exact; }
                     body { font-family: 'Courier New', Courier, monospace; margin: 0; padding: 0; background: white; color: black; line-height: 1.2; }
                     .ticket { width: 100%; max-width: 250px; margin: 0 auto; padding: 5px; text-align: center; overflow: hidden; }
-                    img { width: 100px; height: auto; margin-bottom: 5px; display: inline-block; }
+                    img { width: 150px; height: auto; margin-bottom: 5px; display: inline-block; }
                     h1 { font-size: 11px; font-weight: bold; margin: 0 0 2px 0; }
                     p.header-subtitle { font-size: 9px; margin: 0; font-weight: 500; }
                     .divider { border-top: 1px dashed #000; margin: 5px 0; width: 100%; }
