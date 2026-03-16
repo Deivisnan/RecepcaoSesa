@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { jwtDecode } from 'jwt-decode';
+import { toast } from 'sonner';
 
 export interface User {
     id: string;
@@ -28,16 +29,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const storedToken = localStorage.getItem('@RecepcaoSesa:token');
         if (storedToken) {
             try {
-                const decoded = jwtDecode<User>(storedToken);
-                setToken(storedToken);
-                setUser(decoded);
+                const decoded = jwtDecode<User & { exp: number }>(storedToken);
+                
+                // Check if token is already expired
+                const currentTime = Date.now() / 1000;
+                if (decoded.exp < currentTime) {
+                    console.warn('[Auth] Token expired on initialization');
+                    logout();
+                } else {
+                    setToken(storedToken);
+                    setUser(decoded);
+                }
             } catch (e) {
-                localStorage.removeItem('@RecepcaoSesa:token');
-                setToken(null);
-                setUser(null);
+                logout();
             }
         }
         setIsLoading(false);
+    }, []);
+
+    // Global interceptor for fetch errors (401/403)
+    useEffect(() => {
+        const originalFetch = window.fetch;
+        window.fetch = async (...args) => {
+            const response = await originalFetch(...args);
+
+            if (response.status === 401 || response.status === 403) {
+                // If we get an auth error, we might be expired or invalid
+                console.error(`[Auth] interceptor: Caught ${response.status}. Forcing logout.`);
+                
+                // Only toast and logout if we were previously "authenticated"
+                if (localStorage.getItem('@RecepcaoSesa:token')) {
+                    toast.error('Sessão expirada. Por favor, faça login novamente.');
+                    logout();
+                }
+            }
+
+            return response;
+        };
+
+        return () => {
+            window.fetch = originalFetch;
+        };
     }, []);
 
     const login = (newToken: string, userData: User) => {
