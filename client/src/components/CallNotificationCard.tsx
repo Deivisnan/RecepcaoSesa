@@ -9,9 +9,22 @@ import { Bell, X } from 'lucide-react';
  * este card aparece com: Nome, CPF e Código do Ticket.
  * Também toca o som específico do setor.
  */
+interface NotificationItem extends Ticket {
+    expiresAt: number;
+}
+
 const CallNotificationCard: React.FC = () => {
-    const [notification, setNotification] = useState<Ticket | null>(null);
+    const [notifications, setNotifications] = useState<NotificationItem[]>([]);
     const audioRef = useRef<HTMLAudioElement | null>(null);
+
+    // Auto-remove expired notifications every second
+    useEffect(() => {
+        const timer = setInterval(() => {
+            const now = Date.now();
+            setNotifications(prev => prev.filter(n => n.expiresAt > now));
+        }, 1000);
+        return () => clearInterval(timer);
+    }, []);
 
     useEffect(() => {
         const channel = supabase
@@ -26,7 +39,6 @@ const CallNotificationCard: React.FC = () => {
                             const token = localStorage.getItem('@RecepcaoSesa:token');
                             const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
-                            // Fetch Citizen and Sector details in parallel
                             const [citizenRes, sectorRes] = await Promise.all([
                                 fetch(`${apiUrl}/api/citizens/${updated.citizenId}`, { headers: { 'Authorization': `Bearer ${token}` } }),
                                 fetch(`${apiUrl}/api/sectors/${updated.sectorId}`, { headers: { 'Authorization': `Bearer ${token}` } })
@@ -35,25 +47,24 @@ const CallNotificationCard: React.FC = () => {
                             const citizen = await citizenRes.json();
                             const sector = await sectorRes.json();
 
-                            setNotification({
+                            const newNotification: NotificationItem = {
                                 ...updated,
                                 citizen: { cpf: citizen.cpf, name: citizen.name },
-                                sector: { id: sector.id, name: sector.name, soundUrl: sector.soundUrl }
+                                sector: { id: sector.id, name: sector.name, soundUrl: sector.soundUrl },
+                                expiresAt: Date.now() + 30000 // 30 seconds from now
+                            };
+
+                            setNotifications(prev => {
+                                // Add new to the beginning, take max 3
+                                const next = [newNotification, ...prev].slice(0, 3);
+                                return next;
                             });
 
                             // Play sound
-                            if (sector.soundUrl) {
-                                // Since soundUrl exists, we should ideally fetch it and decode it via AudioContext for autoplay bypass.
-                                // But since that can get complex with CORS, we'll gracefully fallback to standard Audio but suppress the error.
-                                if (sector.soundUrl && !sector.soundUrl.includes('notification.mp3')) {
-                                    if (audioRef.current) audioRef.current.pause();
-                                    audioRef.current = new Audio(sector.soundUrl);
-                                    audioRef.current.play().catch(() => {
-                                        console.warn("Autoplay prevented custom sound playback. A user interaction is required first.");
-                                    });
-                                } else {
-                                    playDefaultChime();
-                                }
+                            if (sector.soundUrl && !sector.soundUrl.includes('notification.mp3')) {
+                                if (audioRef.current) audioRef.current.pause();
+                                audioRef.current = new Audio(sector.soundUrl);
+                                audioRef.current.play().catch(() => {});
                             } else {
                                 playDefaultChime();
                             }
@@ -80,9 +91,7 @@ const CallNotificationCard: React.FC = () => {
             
             const ctx = audioCtxRef.current;
             if (ctx.state === 'suspended') {
-                ctx.resume().catch(() => {
-                    console.warn("Autoplay prevented sound playback. A user interaction is required first.");
-                });
+                ctx.resume().catch(() => {});
             }
             
             const playTone = (freq: number, start: number, dur: number) => {
@@ -104,59 +113,55 @@ const CallNotificationCard: React.FC = () => {
         } catch { }
     };
 
-    if (!notification) return null;
+    if (notifications.length === 0) return null;
 
     return (
-        <div className="animate-in fade-in zoom-in slide-in-from-top-4 duration-500 bg-slate-900/90 backdrop-blur-md border-2 border-indigo-500 rounded-2xl p-4 mb-4 relative shadow-2xl shadow-indigo-500/30 overflow-hidden group">
-            {/* Glossy top highlight */}
-            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-indigo-400 to-transparent opacity-50" />
+        <div className="fixed bottom-6 right-6 z-[9999] w-full max-w-md space-y-4 pointer-events-none">
+            {notifications.map((notification) => (
+                <div 
+                    key={notification.id}
+                    className="pointer-events-auto animate-in fade-in slide-in-from-right-8 duration-500 bg-slate-900/95 backdrop-blur-md border-2 border-indigo-500 rounded-2xl p-4 relative shadow-2xl shadow-indigo-500/20 overflow-hidden group"
+                >
+                    <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-indigo-400 to-transparent opacity-50" />
 
-            <button
-                onClick={() => setNotification(null)}
-                className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors bg-white/5 hover:bg-white/10 p-1.5 rounded-lg border border-white/10"
-                aria-label="Fechar notificação"
-            >
-                <X className="w-4 h-4" />
-            </button>
+                    <button
+                        onClick={() => setNotifications(prev => prev.filter(n => n.id !== notification.id))}
+                        className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors bg-white/5 hover:bg-white/10 p-1 rounded-lg border border-white/10 z-10"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
 
-            <div className="flex flex-col md:flex-row items-center gap-4">
-                {/* Visual Indicator */}
-                <div className="flex-shrink-0 p-3 bg-indigo-600 rounded-xl shadow-lg shadow-indigo-500/40 relative">
-                    <Bell className="w-7 h-7 text-white animate-bounce" />
-                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-slate-900" />
-                </div>
-
-                {/* Main Content */}
-                <div className="flex-grow text-center md:text-left">
-                    <div className="flex flex-col md:flex-row md:items-baseline gap-1 md:gap-3 mb-1">
-                        <span className="text-indigo-400 text-[11px] font-bold uppercase tracking-[0.2em]">Chamada Próximo</span>
-                        <h3 className="text-white font-black text-xl tracking-tight uppercase">
-                            Setor {notification.sector?.name || 'Setor'}
-                        </h3>
-                    </div>
-
-                    <div className="flex flex-col md:flex-row items-center gap-3 md:gap-6">
-                        <div className="flex items-center gap-2">
-                            <span className="text-slate-500 text-xs font-medium uppercase">Cidadão:</span>
-                            <span className="text-slate-100 font-bold text-lg">{notification.citizen?.name || '—'}</span>
+                    <div className="flex items-center gap-4">
+                        <div className="flex-shrink-0 p-3 bg-indigo-600 rounded-xl shadow-lg relative">
+                            <Bell className="w-6 h-6 text-white animate-bounce" />
                         </div>
-                        <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/10">
-                            <span className="text-slate-500 text-[10px] font-bold uppercase">CPF:</span>
-                            <span className="text-slate-300 font-mono text-xs">{notification.citizen?.cpf || '—'}</span>
+
+                        <div className="flex-grow min-w-0">
+                            <div className="flex items-baseline gap-2 mb-0.5">
+                                <span className="text-indigo-400 text-[10px] font-bold uppercase tracking-wider">Chamada</span>
+                                <h3 className="text-white font-black text-lg tracking-tight uppercase truncate">
+                                    Setor {notification.sector?.name || 'Setor'}
+                                </h3>
+                            </div>
+
+                            <div className="flex flex-col gap-0.5">
+                                <div className="flex items-center gap-2 truncate">
+                                    <span className="text-slate-500 text-[10px] font-bold uppercase shrink-0">Cidadão:</span>
+                                    <span className="text-slate-100 font-bold text-base truncate">{notification.citizen?.name || '—'}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono">
+                                    <span className="font-bold flex items-center gap-1">
+                                        TICKET <span className="text-indigo-400 text-sm font-black">{notification.code}</span>
+                                    </span>
+                                </div>
+                            </div>
                         </div>
                     </div>
+                    
+                    {/* Expiration Progress Bar */}
+                    <div className="absolute bottom-0 left-0 h-1 bg-indigo-500 animate-slide-out-left origin-left w-full" style={{ animationDuration: '30s', animationTimingFunction: 'linear' }} />
                 </div>
-
-                {/* Ticket Badge */}
-                <div className="flex-shrink-0 bg-gradient-to-b from-indigo-500 to-indigo-700 p-1 rounded-xl shadow-xl">
-                    <div className="bg-slate-900/40 backdrop-blur-sm rounded-lg px-6 py-2 border border-white/10 flex flex-col items-center">
-                        <span className="text-indigo-200 text-[10px] font-black uppercase tracking-tighter mb-0.5">Ticket</span>
-                        <span className="text-white font-black text-3xl tracking-wide font-mono leading-none">
-                            {notification.code}
-                        </span>
-                    </div>
-                </div>
-            </div>
+            ))}
         </div>
     );
 };

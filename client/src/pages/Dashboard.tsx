@@ -2,12 +2,14 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRealTimeStatus } from '../useRealTimeStatus';
 import { type Sector } from '../types';
-import { Unlock, Lock, LogOut, Search, Users, LayoutDashboard, UserCheck, History } from 'lucide-react';
+import { Unlock, Lock, LogOut, Search, Users, LayoutDashboard, UserCheck } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import AttendanceTab from '../components/AttendanceTab';
 import HistoryTab from '../components/HistoryTab';
 import CallFlowTab from '../components/CallFlowTab';
+import CallsTab from '../components/CallsTab';
 import CallNotificationCard from '../components/CallNotificationCard';
+import { Bell, CheckCheck } from 'lucide-react';
 
 const SectorCard = ({ sector }: { sector: Sector }) => {
     const getStatusConfig = (status: Sector['status']) => {
@@ -170,7 +172,7 @@ const Dashboard: React.FC = () => {
     const { logout } = useAuth();
     const navigate = useNavigate();
 
-    const [activeTab, setActiveTab] = useState<'attendance' | 'panel' | 'history' | 'flow'>('attendance');
+    const [activeTab, setActiveTab] = useState<'attendance' | 'panel' | 'history' | 'flow' | 'calls'>('attendance');
 
     const handleLogout = () => {
         logout();
@@ -216,10 +218,16 @@ const Dashboard: React.FC = () => {
                         <LayoutDashboard className="w-4 h-4" /> Painel de Setores
                     </button>
                     <button
+                        onClick={() => setActiveTab('calls')}
+                        className={`flex items-center gap-2.5 px-6 py-3 rounded-xl text-sm font-bold transition-all duration-300 ${activeTab === 'calls' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 scale-105' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}
+                    >
+                        <Bell className="w-4 h-4" /> Chamados
+                    </button>
+                    <button
                         onClick={() => setActiveTab('flow')}
                         className={`flex items-center gap-2.5 px-6 py-3 rounded-xl text-sm font-bold transition-all duration-300 ${activeTab === 'flow' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 scale-105' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}
                     >
-                        <History className="w-4 h-4" /> Registro de Chamadas
+                        <CheckCheck className="w-4 h-4" /> Finalizados
                     </button>
                     <button
                         onClick={() => setActiveTab('history')}
@@ -236,6 +244,7 @@ const Dashboard: React.FC = () => {
                 <div className="transition-all">
                     {activeTab === 'attendance' && <AttendanceTab sectors={sectors} />}
                     {activeTab === 'panel' && <PanelTab sectors={sectors} />}
+                    {activeTab === 'calls' && <CallsTab />}
                     {activeTab === 'flow' && <CallFlowTab />}
                     {activeTab === 'history' && <HistoryTab />}
                 </div>
