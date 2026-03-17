@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Clock, User, ArrowRight, History, Bell } from 'lucide-react';
 import { API_URL } from '../config/apiConfig';
 import { toast } from 'sonner';
+import { supabase } from '../config/supabaseConfig';
 
 interface CallRecord {
     id: string;
@@ -42,8 +43,23 @@ const CallsTab: React.FC = () => {
 
     useEffect(() => {
         fetchTodayCalls();
-        const interval = setInterval(fetchTodayCalls, 15000); 
-        return () => clearInterval(interval);
+        const interval = setInterval(fetchTodayCalls, 60000); // Polling as fallback (less frequent)
+
+        const channel = supabase
+            .channel('calls-tab')
+            .on(
+                'postgres_changes',
+                { event: 'UPDATE', schema: 'public', table: 'Visit' },
+                () => {
+                    fetchTodayCalls();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            clearInterval(interval);
+            supabase.removeChannel(channel);
+        };
     }, []);
 
     if (loading && calls.length === 0) {

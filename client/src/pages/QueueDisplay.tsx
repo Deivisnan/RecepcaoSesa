@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { API_URL, SOCKET_URL } from '../config/apiConfig';
-import { io, Socket } from 'socket.io-client';
+import { API_URL } from '../config/apiConfig';
+import { supabase } from '../config/supabaseConfig';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface Ticket {
@@ -46,7 +47,7 @@ const QueueDisplay: React.FC = () => {
   const [heroKey, setHeroKey] = useState(0);
   const [heroGlow, setHeroGlow] = useState(false);
   const prevHeroCode = useRef<string | null>(null);
-  const socketRef = useRef<Socket | null>(null);
+  const channelRef = useRef<RealtimeChannel | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ── Clock ──────────────────────────────────────────────────────────────────
@@ -85,19 +86,28 @@ const QueueDisplay: React.FC = () => {
     } catch (_) {}
   }, []);
 
-  // ── Socket.IO ─────────────────────────────────────────────────────────────
+  // ── Supabase Realtime ─────────────────────────────────────────────────────
   useEffect(() => {
     fetchData();
-    pollRef.current = setInterval(fetchData, 10000);
+    pollRef.current = setInterval(fetchData, 30000); // Polling as fallback (less frequent)
 
-    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
-    socketRef.current = socket;
-    socket.on('status_changed', () => fetchData());
-    socket.on('queue_reset', () => fetchData());
+    // Subscribe to changes in the 'visits' table (mapped as 'Visit' in Prisma, but usually lowercase in DB)
+    const channel = supabase
+      .channel('queue-display')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'Visit' },
+        () => {
+          fetchData();
+        }
+      )
+      .subscribe();
+
+    channelRef.current = channel;
 
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
-      socket.disconnect();
+      if (channelRef.current) supabase.removeChannel(channelRef.current);
     };
   }, [fetchData]);
 
