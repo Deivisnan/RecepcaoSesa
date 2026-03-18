@@ -117,8 +117,8 @@ const QueueDisplay: React.FC = () => {
   // Hero is the MOST RECENT (last in array ordered by timestamp asc)
   const heroTicket = inServiceTickets.length > 0 ? inServiceTickets[inServiceTickets.length - 1] : null;
 
-  // List is everything BEFORE the hero, limited to the last 12 previous calls
-  const listTickets: Ticket[] = inServiceTickets.slice(Math.max(0, inServiceTickets.length - 13), -1);
+  // List is everything BEFORE the hero, limited to the last 12 previous calls, recent first
+  const listTickets: Ticket[] = inServiceTickets.slice(Math.max(0, inServiceTickets.length - 13), -1).reverse();
 
   return (
     <div style={styles.page}>
@@ -128,15 +128,6 @@ const QueueDisplay: React.FC = () => {
           <img src="/logo.png" alt="Logo" style={styles.logo} onError={e => { (e.target as HTMLImageElement).style.visibility = 'hidden'; }} />
           <div style={styles.logoDivider} />
           <span style={styles.headerTitle}>SESA · CAF</span>
-        </div>
-
-        <div style={styles.headerCenter}>
-          <div style={styles.avgContainer}>
-            <span style={styles.avgLabel}>Tempo médio de espera</span>
-            <span style={styles.avgValue}>
-              {data.avgWaitMinutes !== null ? `${data.avgWaitMinutes} min` : '-- min'}
-            </span>
-          </div>
         </div>
 
         <div style={styles.headerRight}>
@@ -278,25 +269,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 700,
     letterSpacing: '2px',
     color: '#94A3B8',
-  },
-  headerCenter: {
-    textAlign: 'center',
-  },
-  avgContainer: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '4px',
-  },
-  avgLabel: {
-    fontSize: '12px',
-    textTransform: 'uppercase',
-    letterSpacing: '1px',
-    color: '#64748B',
-  },
-  avgValue: {
-    fontSize: '18px',
-    fontWeight: 600,
-    color: '#CBD5E1',
   },
   headerRight: {
     textAlign: 'right',
