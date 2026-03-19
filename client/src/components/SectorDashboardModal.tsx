@@ -279,7 +279,7 @@ export const SectorDashboardModal: React.FC<SectorDashboardModalProps> = ({ isOp
                                     type="date"
                                     value={startDate}
                                     onChange={(e) => setStartDate(e.target.value)}
-                                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none [&::-webkit-calendar-picker-indicator]:invert"
                                 />
                             </div>
                             <div className="w-full md:w-auto">
@@ -288,7 +288,7 @@ export const SectorDashboardModal: React.FC<SectorDashboardModalProps> = ({ isOp
                                     type="date"
                                     value={endDate}
                                     onChange={(e) => setEndDate(e.target.value)}
-                                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-indigo-500 outline-none [&::-webkit-calendar-picker-indicator]:invert"
                                 />
                             </div>
                             <div className="flex gap-2 w-full md:w-auto mt-4 md:mt-0">

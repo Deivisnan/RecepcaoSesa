@@ -164,12 +164,12 @@ router.get('/xlsx', async (req, res) => {
 });
 
 // PDF Premium
-// PDF Premium E Resiliente
+// PDF Premium via Puppeteer Serverless
 router.get('/pdf', async (req, res) => {
+    let browser = null;
     try {
         console.log(`[PDF Export] Início da geração do PDF para a query:`, req.query);
 
-        // 1. Coleta de dados com fallback de segurança
         let visits;
         try {
             visits = await getFilteredVisits(req);
@@ -178,7 +178,6 @@ router.get('/pdf', async (req, res) => {
             return res.status(500).json({ error: 'Falha ao buscar dados no banco', details: dbErr.message });
         }
 
-        // 2. Validação de dados ausentes - Proteção contra quebras
         if (!visits || visits.length === 0) {
             console.warn(`[PDF Export] Nenhum dado retornado para a query informada.`);
             return res.status(404).json({ error: 'Nenhum dado encontrado com os filtros informados.' });
@@ -186,149 +185,133 @@ router.get('/pdf', async (req, res) => {
 
         const sectorName = req.query.sectorId ? (visits[0] as any)?.sector?.name || 'Setor' : 'Visão Geral';
 
-        // 3. Setup nativo do PdfMake isolado em try/catch para erros de CommonJS ou Path de Fonte
-        let printer;
-        try {
-            const fonts = {
-                Helvetica: {
-                    normal: 'Helvetica',
-                    bold: 'Helvetica-Bold',
-                    italics: 'Helvetica-Oblique',
-                    bolditalics: 'Helvetica-BoldOblique'
-                }
-            };
-            const PdfPrinter = require('pdfmake');
-            printer = new PdfPrinter(fonts);
-        } catch (importError: any) {
-            console.error(`[PDF Export] Erro crítico de inicialização do gerador PDFMake:`, importError.message);
-            return res.status(500).json({ error: 'Erro de dependência do motor de PDF na Vercel.' });
-        }
+        const finishedCount = visits.filter((v: any) => v.ticketStatus === 'FINISHED').length;
+        const waitingCount = visits.filter((v: any) => v.ticketStatus === 'WAITING').length;
 
-        // 4. Construção de Tabela com Fallbacks de Data Vazio
-        const tableBody: any[] = [
-            [
-                { text: 'Data/Hora', style: 'tableHeader' },
-                { text: 'Ticket', style: 'tableHeader' },
-                { text: 'Status', style: 'tableHeader' },
-                { text: 'Cidadão', style: 'tableHeader' },
-                { text: 'Setor', style: 'tableHeader' }
-            ]
-        ];
-
-        visits.forEach((v: any, index: number) => {
-            const isEven = index % 2 === 0;
-            const fillColor = isEven ? '#f8fafc' : '#ffffff';
-            
-            // Garantir datas válidas evitando Exceptions do date-fns
+        let tableRowsHtml = '';
+        visits.forEach((v: any) => {
             const printDate = (v.timestamp instanceof Date && !isNaN(v.timestamp.valueOf()))
                 ? format(v.timestamp, 'dd/MM/yyyy HH:mm') 
                 : '-';
             
-            tableBody.push([
-                { text: printDate, fillColor, fontSize: 10 },
-                { text: v.code || '-', fillColor, fontSize: 10 },
-                { text: v.ticketStatus || '-', fillColor, fontSize: 10 },
-                { text: v.citizen?.name || 'Anônimo', fillColor, fontSize: 10 },
-                { text: v.sector?.name || 'Geral', fillColor, fontSize: 10 }
-            ]);
+            tableRowsHtml += `
+                <tr>
+                    <td>${printDate}</td>
+                    <td>${v.code || '-'}</td>
+                    <td>${v.ticketStatus || '-'}</td>
+                    <td>${v.citizen?.name || 'Anônimo'}</td>
+                    <td>${v.sector?.name || 'Geral'}</td>
+                </tr>
+            `;
         });
 
-        // Contadores Seguros
-        const finishedCount = visits.filter((v: any) => v.ticketStatus === 'FINISHED').length;
-        const waitingCount = visits.filter((v: any) => v.ticketStatus === 'WAITING').length;
+        const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <style>
+                body { font-family: Helvetica, Arial, sans-serif; color: #0f172a; margin: 0; padding: 0; font-size: 12px; }
+                .header { display: flex; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 20px; }
+                .title { font-size: 20px; font-weight: bold; }
+                .subtitle { font-size: 14px; color: #475569; margin-top: 5px; text-align: right; }
+                .kpi-row { display: flex; gap: 20px; margin-bottom: 20px; }
+                .kpi-card { background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; font-weight: bold; font-size: 12px; flex: 1; }
+                .kpi-value { font-size: 18px; color: #334155; margin-top: 4px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                th { background: #0f172a; color: white; padding: 10px; text-align: left; font-size: 11px; }
+                td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-size: 10px; }
+                tr:nth-child(even) { background-color: #f8fafc; }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <div class="title">Recepção SESA</div>
+                <div class="subtitle">Relatório: ${sectorName}</div>
+            </div>
 
-        // 5. Configuração do Documento
-        const docDefinition: any = {
-            pageOrientation: 'landscape',
-            defaultStyle: { font: 'Helvetica' },
-            header: {
-                margin: [40, 20, 40, 0],
-                columns: [
-                    { text: 'Recepção SESA', style: 'headerTitle' },
-                    { text: `Relatório: ${sectorName}`, alignment: 'right', style: 'headerSubtitle' }
-                ]
-            },
-            footer: (currentPage: number, pageCount: number) => {
-                let footerDate = '';
-                try { footerDate = format(new Date(), 'dd/MM/yyyy HH:mm'); } catch (e) { footerDate = 'Data Indisponível'; }
-                return {
-                    margin: [40, 0, 40, 20],
-                    columns: [
-                        { text: `Gerado em: ${footerDate} | Filtro Aplicado`, fontSize: 8, color: '#64748b' },
-                        { text: `Página ${currentPage} de ${pageCount}`, alignment: 'right', fontSize: 8, color: '#64748b' }
-                    ]
-                };
-            },
-            content: [
-                { text: 'Dashboard Summary', style: 'sectionHeader', margin: [0, 20, 0, 10] },
-                {
-                    columns: [
-                        { text: `Total: ${visits.length}`, style: 'kpi' },
-                        { text: `Finalizados: ${finishedCount}`, style: 'kpi' },
-                        { text: `Aguardando: ${waitingCount}`, style: 'kpi' }
-                    ],
-                    columnGap: 10,
-                    margin: [0, 0, 0, 20]
-                },
-                { text: 'Raw Data', style: 'sectionHeader', margin: [0, 10, 0, 10] },
-                {
-                    table: {
-                        headerRows: 1,
-                        widths: ['auto', 'auto', 'auto', '*', 'auto'],
-                        body: tableBody
-                    },
-                    layout: {
-                        hLineWidth: () => 0.5,
-                        vLineWidth: () => 0,
-                        hLineColor: () => '#e2e8f0',
-                        paddingLeft: () => 8,
-                        paddingRight: () => 8,
-                        paddingTop: () => 4,
-                        paddingBottom: () => 4
-                    }
-                }
-            ],
-            styles: {
-                headerTitle: { fontSize: 18, bold: true, color: '#0f172a' },
-                headerSubtitle: { fontSize: 14, color: '#475569', margin: [0, 4, 0, 0] },
-                sectionHeader: { fontSize: 14, bold: true, color: '#0f172a' },
-                tableHeader: { bold: true, fontSize: 11, color: '#ffffff', fillColor: '#0f172a' },
-                kpi: { fontSize: 12, bold: true, color: '#334155', fillColor: '#f1f5f9', margin: [0, 4, 0, 4] }
-            }
-        };
+            <div style="font-size: 14px; font-weight: bold; margin-bottom: 10px;">Resumo do Dashboard</div>
+            <div class="kpi-row">
+                <div class="kpi-card">Total de Atendimentos<div class="kpi-value">${visits.length}</div></div>
+                <div class="kpi-card">Finalizados<div class="kpi-value">${finishedCount}</div></div>
+                <div class="kpi-card">Aguardando<div class="kpi-value">${waitingCount}</div></div>
+            </div>
 
-        // 6. Geração de Stream e Resposta com Captura de Erros On-Stream
-        console.log(`[PDF Export] Efetuando stream do relatório: [Setor: ${sectorName}]`);
-        const pdfDoc = printer.createPdfKitDocument(docDefinition);
-        
-        // Evitando caracters especiais no File Header que quebram o parsing Vercel HTTP
+            <div style="font-size: 14px; font-weight: bold; margin-bottom: 10px;">Dados Brutos</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Data/Hora</th>
+                        <th>Ticket</th>
+                        <th>Status</th>
+                        <th>Cidadão</th>
+                        <th>Setor</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${tableRowsHtml}
+                </tbody>
+            </table>
+        </body>
+        </html>
+        `;
+
+        const chromium = require('chrome-aws-lambda');
+        const puppeteer = require('puppeteer-core');
+
+        console.log('[PDF Export] Inicializando Puppeteer...');
+        const executablePath = await chromium.executablePath || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+
+        browser = await puppeteer.launch({
+            args: chromium.args,
+            defaultViewport: chromium.defaultViewport,
+            executablePath: executablePath,
+            headless: chromium.headless,
+            ignoreHTTPSErrors: true,
+        });
+
+        const page = await browser.newPage();
+        await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+
+        let footerDate = '';
+        try { footerDate = format(new Date(), 'dd/MM/yyyy HH:mm'); } catch (e) { footerDate = 'Data Indisponível'; }
+
+        console.log('[PDF Export] Gerando PDF buffer...');
+        const pdfBuffer = await page.pdf({
+            format: 'A4',
+            landscape: true,
+            printBackground: true,
+            margin: { top: '40px', right: '40px', bottom: '60px', left: '40px' },
+            displayHeaderFooter: true,
+            headerTemplate: '<div></div>',
+            footerTemplate: `
+                <div style="width: 100%; font-size: 8px; color: #64748b; padding: 0 40px; display: flex; justify-content: space-between; font-family: Helvetica, Arial, sans-serif;">
+                    <span>Gerado em: ${footerDate} | Filtro Aplicado</span>
+                    <span>Página <span class="pageNumber"></span> de <span class="totalPages"></span></span>
+                </div>
+            `
+        });
+
         let safeSectorName = sectorName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
         let fileDate = '';
         try { fileDate = format(new Date(), 'yyyyMMdd'); } catch(e) { fileDate = 'Export'; }
         
+        console.log('[PDF Export] Buffer gerado com sucesso. Enviando cliente...');
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename=Relatorio_${safeSectorName}_${fileDate}.pdf`);
-        
-        pdfDoc.on('error', (err: any) => {
-            console.error(`[PDF Export - STREAM EVENT] Erro durante a injeção do buffer do documento:`, err.message);
-            if (!res.headersSent) {
-                res.status(500).json({ error: 'Falha durante o envio (streaming) do documento de impressão PDF.' });
-            }
-            res.end();
-        });
-
-        pdfDoc.pipe(res);
-        pdfDoc.end();
+        res.end(pdfBuffer);
 
     } catch (error: any) {
-        console.error('[PDF Export - FATAL CATCH]', error);
+        console.error('[PDF Export - FATAL]', error);
         if (!res.headersSent) {
             res.status(500).json({ 
-                error: 'Falha interna não-tratada ao exportar PDF', 
+                error: 'Falha interna ao exportar PDF via Puppeteer Serverless', 
                 message: process.env.NODE_ENV === 'development' ? error.stack : error.message 
             });
-        } else {
-            res.end();
+        }
+    } finally {
+        if (browser !== null) {
+            await browser.close().catch(console.error);
         }
     }
 });
