@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import ExcelJS from 'exceljs';
+// @ts-ignore
 import PdfPrinter from 'pdfmake';
 import { format } from 'date-fns';
 
@@ -90,7 +91,7 @@ async function getFilteredVisits(req: Request) {
 router.get('/xlsx', async (req, res) => {
     try {
         const visits = await getFilteredVisits(req);
-        const sectorName = req.query.sectorId ? visits[0]?.sector?.name || 'Setor' : 'Visão Geral';
+        const sectorName = req.query.sectorId ? (visits[0] as any)?.sector?.name || 'Setor' : 'Visão Geral';
 
         const workbook = new ExcelJS.Workbook();
         workbook.creator = 'Recepção SESA';
@@ -167,7 +168,7 @@ router.get('/xlsx', async (req, res) => {
 router.get('/pdf', async (req, res) => {
     try {
         const visits = await getFilteredVisits(req);
-        const sectorName = req.query.sectorId ? visits[0]?.sector?.name || 'Setor' : 'Visão Geral';
+        const sectorName = req.query.sectorId ? (visits[0] as any)?.sector?.name || 'Setor' : 'Visão Geral';
 
         const fonts = {
             Helvetica: {
@@ -178,9 +179,9 @@ router.get('/pdf', async (req, res) => {
             }
         };
 
-        const printer = new PdfPrinter(fonts);
+        const printer = new (PdfPrinter as any)(fonts);
 
-        const tableBody = [
+        const tableBody: any[] = [
             [
                 { text: 'Data/Hora', style: 'tableHeader' },
                 { text: 'Ticket', style: 'tableHeader' },
