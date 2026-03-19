@@ -141,10 +141,47 @@ export const SectorDashboardModal: React.FC<SectorDashboardModalProps> = ({ isOp
         return url;
     };
 
-    const handleExport = (type: 'pdf' | 'xlsx') => {
+    const handleExport = async (type: 'pdf' | 'xlsx') => {
         setExportMenuOpen(false);
-        window.open(getExportUrl(type), '_blank');
-        toast.success(`Exportação ${type.toUpperCase()} iniciada!`);
+        const loadingId = toast.loading(`Gerando exportação ${type.toUpperCase()}...`);
+        try {
+            const token = localStorage.getItem('@RecepcaoSesa:token');
+            const res = await fetch(getExportUrl(type), {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.error || 'Falha ao exportar');
+            }
+            
+            const blob = await res.blob();
+            let filename = `Relatorio_Export.${type}`;
+            const disposition = res.headers.get('content-disposition');
+            if (disposition && disposition.indexOf('filename=') !== -1) {
+                const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+                const matches = filenameRegex.exec(disposition);
+                if (matches != null && matches[1]) {
+                    filename = matches[1].replace(/['"]/g, '');
+                }
+            }
+
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            toast.dismiss(loadingId);
+            toast.success(`Exportação ${type.toUpperCase()} concluída!`);
+        } catch (error: any) {
+            toast.dismiss(loadingId);
+            toast.error(error.message || 'Erro ao gerar exportação.');
+            console.error(error);
+        }
     };
 
     const handleScheduleEmail = () => {
