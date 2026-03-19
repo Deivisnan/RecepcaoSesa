@@ -1,8 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import ExcelJS from 'exceljs';
-// @ts-ignore
-import PdfPrinter from 'pdfmake';
+const PdfPrinter = require('pdfmake');
 import { format } from 'date-fns';
 
 const router = Router();
