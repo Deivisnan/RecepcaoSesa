@@ -256,11 +256,13 @@ router.get('/pdf', async (req, res) => {
         </html>
         `;
 
-        const chromium = require('chrome-aws-lambda');
+        const chromium = require('@sparticuz/chromium');
         const puppeteer = require('puppeteer-core');
 
-        console.log('[PDF Export] Inicializando Puppeteer...');
-        const executablePath = await chromium.executablePath || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+        console.log('[PDF Export] Inicializando Puppeteer com @sparticuz/chromium...');
+        
+        // Em ambiente local (Windows), o fallback resolve para o Chrome instalado.
+        const executablePath = process.env.VERCEL ? await chromium.executablePath() : 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 
         browser = await puppeteer.launch({
             args: chromium.args,
