@@ -402,66 +402,78 @@ const Controller: React.FC = () => {
                 )}
 
                 {/* Status buttons */}
-                {/* Painel Operacional Unificado */}
-                <div className="w-full flex flex-col lg:flex-row gap-4 mt-2">
-                    {/* Status buttons - Left side */}
-                    <div className="grid grid-cols-3 gap-2 flex-1">
-                        <button
-                            className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all duration-300 ${sector.status === 'AVAILABLE'
-                                ? 'bg-emerald-500/10 border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.1)] scale-100 z-10'
-                                : 'bg-slate-800/50 border-slate-700 hover:border-emerald-500/30 hover:bg-slate-800 scale-95 opacity-70'
-                                }`}
-                            onClick={() => updateStatus(sector.id, 'AVAILABLE')}
-                        >
-                            <CheckCircle2 className={`w-6 h-6 mb-1 ${sector.status === 'AVAILABLE' ? 'text-emerald-500' : 'text-slate-500'}`} />
-                            <span className={`text-[10px] font-black tracking-widest ${sector.status === 'AVAILABLE' ? 'text-emerald-400' : 'text-slate-500'}`}>LIVRE</span>
-                        </button>
+                {/* Status buttons */}
+                <div className="grid grid-cols-3 gap-3 w-full mt-2">
+                    <button
+                        className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all duration-300 ${sector.status === 'AVAILABLE'
+                            ? 'bg-emerald-500/10 border-emerald-500 shadow-[0_0_30px_rgba(16,185,129,0.2)] scale-100 z-10'
+                            : 'bg-slate-800/50 border-slate-700 hover:border-emerald-500/30 hover:bg-slate-800 scale-95 opacity-70 hover:opacity-100'
+                            }`}
+                        onClick={() => updateStatus(sector.id, 'AVAILABLE')}
+                        title="Marcar como Livre"
+                    >
+                        <CheckCircle2 className={`w-8 h-8 mb-2 transition-transform ${sector.status === 'AVAILABLE' ? 'text-emerald-500 scale-110' : 'text-slate-400'}`} />
+                        <span className={`text-xs font-bold tracking-widest ${sector.status === 'AVAILABLE' ? 'text-emerald-400' : 'text-slate-400'}`}>LIVRE</span>
+                    </button>
 
-                        <button
-                            className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all duration-300 ${sector.status === 'BUSY'
-                                ? 'bg-rose-500/10 border-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.1)] scale-100 z-10'
-                                : 'bg-slate-800/50 border-slate-700 hover:border-rose-500/30 hover:bg-slate-800 scale-95 opacity-70'
-                                }`}
-                            onClick={() => updateStatus(sector.id, 'BUSY')}
-                        >
-                            <ShieldAlert className={`w-6 h-6 mb-1 ${sector.status === 'BUSY' ? 'text-rose-500' : 'text-slate-500'}`} />
-                            <span className={`text-[10px] font-black tracking-widest ${sector.status === 'BUSY' ? 'text-rose-400' : 'text-slate-500'}`}>OCUPADO</span>
-                        </button>
+                    <button
+                        className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all duration-300 ${sector.status === 'BUSY'
+                            ? 'bg-rose-500/10 border-rose-500 shadow-[0_0_30px_rgba(244,63,94,0.2)] scale-100 z-10'
+                            : 'bg-slate-800/50 border-slate-700 hover:border-rose-500/30 hover:bg-slate-800 scale-95 opacity-70 hover:opacity-100'
+                            }`}
+                        onClick={() => updateStatus(sector.id, 'BUSY')}
+                        title="Marcar como Ocupado"
+                    >
+                        <ShieldAlert className={`w-8 h-8 mb-2 transition-transform ${sector.status === 'BUSY' ? 'text-rose-500 scale-110' : 'text-slate-400'}`} />
+                        <span className={`text-xs font-bold tracking-widest ${sector.status === 'BUSY' ? 'text-rose-400' : 'text-slate-400'}`}>OCUP.</span>
+                    </button>
 
-                        <button
-                            className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all duration-300 ${sector.status === 'AWAY'
-                                ? 'bg-amber-500/10 border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.1)] scale-100 z-10'
-                                : 'bg-slate-800/50 border-slate-700 hover:border-amber-500/30 hover:bg-slate-800 scale-95 opacity-70'
-                                }`}
-                            onClick={() => updateStatus(sector.id, 'AWAY')}
-                        >
-                            <AlertTriangle className={`w-6 h-6 mb-1 ${sector.status === 'AWAY' ? 'text-amber-500' : 'text-slate-500'}`} />
-                            <span className={`text-[10px] font-black tracking-widest ${sector.status === 'AWAY' ? 'text-amber-400' : 'text-slate-500'}`}>AUSENTE</span>
-                        </button>
-                    </div>
+                    <button
+                        className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all duration-300 ${sector.status === 'AWAY'
+                            ? 'bg-amber-500/10 border-amber-500 shadow-[0_0_30px_rgba(245,158,11,0.2)] scale-100 z-10'
+                            : 'bg-slate-800/50 border-slate-700 hover:border-amber-500/30 hover:bg-slate-800 scale-95 opacity-70 hover:opacity-100'
+                            }`}
+                        onClick={() => updateStatus(sector.id, 'AWAY')}
+                        title="Marcar como Ausente"
+                    >
+                        <AlertTriangle className={`w-8 h-8 mb-2 transition-transform ${sector.status === 'AWAY' ? 'text-amber-500 scale-110' : 'text-slate-400'}`} />
+                        <span className={`text-xs font-bold tracking-widest ${sector.status === 'AWAY' ? 'text-amber-400' : 'text-slate-400'}`}>AUSENTE</span>
+                    </button>
+                </div>
 
-                    {/* Dar Baixa - Right side */}
-                    <div className="flex-[1.5] bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 shadow-lg transition-all duration-300 hover:border-indigo-500/30 focus-within:border-indigo-500/50">
-                        <form onSubmit={handleCheckout} className="flex gap-2">
-                            <div className="flex-1 relative group">
-                                <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
+                {/* Dar Baixa */}
+                <div className="w-full bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 mt-4 shadow-xl transition-all duration-300 hover:border-emerald-500/30 focus-within:border-emerald-500/50 focus-within:shadow-[0_0_30px_rgba(16,185,129,0.1)]">
+                    <h3 className="text-slate-300 font-semibold mb-4 flex items-center gap-2">
+                        <CheckCheck className="w-5 h-5 text-emerald-400" />
+                        Finalizar Atendimento (Dar Baixa)
+                    </h3>
+                    <form onSubmit={handleCheckout} className="flex flex-col sm:flex-row gap-3">
+                        <div className="flex-1 relative group">
+                            <Hash className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-emerald-400 transition-colors" />
+                            <div className="flex items-center bg-slate-900 border-2 border-slate-700 rounded-xl pl-12 focus-within:border-emerald-500 transition-all">
+                                <span className="text-slate-500 font-bold pr-2 border-r border-slate-700">{sectorPrefix}</span>
                                 <input
                                     type="text"
                                     value={checkoutCode}
                                     onChange={(e) => setCheckoutCode(e.target.value.toUpperCase())}
-                                    placeholder="Ticket"
-                                    className="w-full bg-slate-900 border-2 border-slate-700 rounded-lg py-2.5 pl-9 pr-3 text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 text-sm font-bold tracking-wider transition-all"
+                                    placeholder="000"
+                                    className="flex-1 bg-transparent py-4 px-3 text-white placeholder-slate-600 focus:outline-none font-bold text-xl tracking-widest"
+                                    maxLength={3}
                                 />
                             </div>
-                            <button
-                                type="submit"
-                                disabled={checkoutLoading || !checkoutCode}
-                                className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-600 text-white rounded-lg font-black text-xs uppercase tracking-widest transition-all shadow-lg active:scale-95"
-                            >
-                                {checkoutLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Dar Baixa'}
-                            </button>
-                        </form>
-                    </div>
+                        </div>
+                        <button
+                            type="submit"
+                            disabled={checkoutLoading || !checkoutCode}
+                            className="bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-600 text-white font-black py-4 px-8 rounded-xl transition-all shadow-lg active:scale-95 flex items-center justify-center min-w-[160px]"
+                        >
+                            {checkoutLoading ? (
+                                <Loader2 className="w-6 h-6 animate-spin" />
+                            ) : (
+                                <span className="tracking-widest uppercase text-sm">Dar Baixa</span>
+                            )}
+                        </button>
+                    </form>
                 </div>
 
                 {/* Dar Baixa */}
