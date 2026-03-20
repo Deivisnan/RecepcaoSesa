@@ -75,6 +75,8 @@ class AudioManager {
     return true;
   }
 
+  private activeUtterance: SpeechSynthesisUtterance | null = null;
+
   /**
    * Converte texto em fala (TTS) usando a API nativa do navegador com repetições confiáveis.
    */
@@ -84,15 +86,24 @@ class AudioManager {
         return;
     }
 
+    // Cancela qualquer fala anterior para evitar sobreposição ou travamentos
+    window.speechSynthesis.cancel();
+
     const speakRecursive = (remaining: number) => {
-      if (remaining <= 0) return;
+      if (remaining <= 0) {
+        this.activeUtterance = null;
+        return;
+      }
+
+      console.log(`[TTS] Falando: "${text}" (Restam ${remaining} repetições)`);
 
       const utterance = new SpeechSynthesisUtterance(text);
+      this.activeUtterance = utterance; // Previne Garbage Collection (Bug comum no Chrome)
+      
       utterance.lang = 'pt-BR';
       utterance.rate = 1.0;
       utterance.pitch = 1.0;
 
-      // Garante que as vozes estão carregadas
       const voices = window.speechSynthesis.getVoices();
       const brVoice = voices.find(v => v.lang.includes('pt-BR'));
       if (brVoice) utterance.voice = brVoice;
@@ -100,13 +111,17 @@ class AudioManager {
       utterance.onend = () => {
         if (remaining > 1) {
           setTimeout(() => speakRecursive(remaining - 1), intervalMs);
+        } else {
+          this.activeUtterance = null;
         }
       };
 
-      utterance.onerror = () => {
-        // Tenta continuar mesmo se houver erro em uma iteração
+      utterance.onerror = (err) => {
+        console.error("[TTS] Erro na fala:", err);
         if (remaining > 1) {
           setTimeout(() => speakRecursive(remaining - 1), intervalMs);
+        } else {
+          this.activeUtterance = null;
         }
       };
 
