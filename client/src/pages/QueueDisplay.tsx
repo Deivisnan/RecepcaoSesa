@@ -26,6 +26,7 @@ const COLORS = {
   white: '#FFFFFF',
   inService: '#22C55E',
   next: '#F59E0B',
+  expired: '#EAB308', // Amarelo para guichês que já chamaram
   waiting: '#94A3B8',
   border: 'rgba(255,255,255,0.08)',
   cardBg: 'rgba(255,255,255,0.03)',
@@ -188,11 +189,11 @@ const QueueDisplay: React.FC = () => {
   // Hero is either the one being staggered OR the most recent one if queue is empty
   const heroTicket = displayHero || (inServiceTickets.length > 0 ? inServiceTickets[inServiceTickets.length - 1] : null);
 
-  // List is everything BEFORE the hero, limited to the last 12 previous calls, recent first
+  // List is everything BEFORE the hero, limited to the last 9 previous calls, most recent first
   const listTickets: Ticket[] = inServiceTickets
     .filter(t => t.id !== heroTicket?.id)
-    .slice(Math.max(0, inServiceTickets.length - 14), -1)
-    .reverse();
+    .sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .slice(0, 9);
 
   return (
     <div style={styles.page}>
@@ -246,7 +247,6 @@ const QueueDisplay: React.FC = () => {
           <div style={styles.gridContainer}>
             {listTickets.length > 0 ? (
               listTickets.map((t, idx) => {
-                const info = getTicketStatusInfo(t, idx);
                 return (
                   <div
                     key={t.id}
@@ -259,8 +259,8 @@ const QueueDisplay: React.FC = () => {
                       gap: '4px'
                     }}
                   >
-                    <span style={{ ...styles.gridCode, color: info.color }}>{t.code}</span>
-                    <span style={{ ...styles.gridSector, color: info.color + '80' }}>
+                    <span style={{ ...styles.gridCode, color: COLORS.expired }}>{t.code}</span>
+                    <span style={{ ...styles.gridSector, color: COLORS.expired + '80' }}>
                       {t.sectorName}
                     </span>
                   </div>
