@@ -33,17 +33,6 @@ const COLORS = {
 };
 // Audio handled by global audioManager
 
-// ── Helper to determine ticket visual status ────────────────────────────────
-const getTicketStatusInfo = (ticket: Ticket, indexInList: number) => {
-  if (ticket.status === 'IN_SERVICE') {
-    return { label: 'Em atendimento', color: COLORS.inService, bg: 'rgba(34,197,94,0.1)' };
-  }
-  if (indexInList < 2) {
-    return { label: 'Próximo', color: COLORS.next, bg: 'rgba(245,158,11,0.1)' };
-  }
-  return { label: 'Aguardando', color: COLORS.waiting, bg: 'rgba(148,163,184,0.05)' };
-};
-
 // ── Component ─────────────────────────────────────────────────────────────────
 const QueueDisplay: React.FC = () => {
   const { isUnlocked, unlockManual } = useAudioUnlock();
