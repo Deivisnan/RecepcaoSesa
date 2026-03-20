@@ -6,6 +6,7 @@ import { LogOut, CheckCircle2, AlertTriangle, ShieldAlert, Users, PhoneCall, Has
 import { API_URL } from '../config/apiConfig';
 import { toast } from 'sonner';
 import { SectorDashboardModal } from '../components/SectorDashboardModal';
+import { ArrivalOrderModal } from '../components/ArrivalOrderModal';
 
 const Controller: React.FC = () => {
     const { user, logout } = useAuth();
@@ -19,6 +20,7 @@ const Controller: React.FC = () => {
     const [cooldown, setCooldown] = useState(0);
     const [currentCitizen, setCurrentCitizen] = useState<{ name: string } | null>(null);
     const [isDashboardOpen, setIsDashboardOpen] = useState(false);
+    const [isArrivalOrderOpen, setIsArrivalOrderOpen] = useState(false);
 
     const sector = useMemo(() => {
         if (!user?.sectorName) return undefined;
@@ -158,6 +160,19 @@ const Controller: React.FC = () => {
             toast.error('Erro de conexão');
         } finally {
             setCallingNext(false);
+        }
+    };
+
+    const handleBatchCallSuccess = (calledCitizens: any[]) => {
+        if (!sector) return;
+        if (calledCitizens.length > 0) {
+            // Set the first citizen from the batch as the current one for tracking
+            setCurrentCitizen({ name: `${calledCitizens[0].citizen.name} (+${calledCitizens.length - 1} outros)` });
+            
+            // Start cooldown for batch calling (maybe shorter or standard?)
+            const timestamp = Date.now();
+            localStorage.setItem(`@RecepcaoSesa:cooldown:${sector.id}`, timestamp.toString());
+            setCooldown(300);
         }
     };
 
@@ -324,6 +339,22 @@ const Controller: React.FC = () => {
                     )}
                 </button>
 
+                {/* Batch Calling Button (Arrival Order) */}
+                {sector && (sector.maxBatchSize || 1) > 1 && (
+                    <button
+                        onClick={() => setIsArrivalOrderOpen(true)}
+                        disabled={sector.queueCount === 0 || sector.status !== 'AVAILABLE'}
+                        className={`w-full group mt-[-10px] flex items-center justify-center gap-2 p-5 rounded-2xl font-black transition-all duration-300 active:scale-[0.98] border-2 shadow-lg ${
+                            sector.status !== 'AVAILABLE' || sector.queueCount === 0
+                            ? 'bg-slate-800 border-slate-700 text-slate-500 cursor-not-allowed opacity-50'
+                            : 'bg-indigo-900/40 border-indigo-500/50 text-indigo-300 hover:bg-indigo-900/60 hover:border-indigo-400 hover:shadow-indigo-500/10'
+                        }`}
+                    >
+                        <Users className="w-5 h-5" />
+                        <span className="text-lg tracking-tight uppercase">Ordem de Chegada (Lote)</span>
+                    </button>
+                )}
+
                 {/* Status buttons */}
                 <div className="grid grid-cols-3 gap-3 w-full mt-2">
                     <button
@@ -405,6 +436,16 @@ const Controller: React.FC = () => {
                     onClose={() => setIsDashboardOpen(false)}
                     sectorId={sector.id}
                     sectorName={sector.name}
+                />
+            )}
+
+            {sector && (
+                <ArrivalOrderModal
+                    isOpen={isArrivalOrderOpen}
+                    onClose={() => setIsArrivalOrderOpen(false)}
+                    sectorId={sector.id}
+                    maxBatchSize={sector.maxBatchSize || 1}
+                    onCallSuccess={handleBatchCallSuccess}
                 />
             )}
         </div>

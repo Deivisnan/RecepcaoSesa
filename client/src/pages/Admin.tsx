@@ -7,6 +7,8 @@ import { API_URL } from '../config/apiConfig';
 interface Sector {
     id: string;
     name: string;
+    maxBatchSize: number;
+    soundUrl: string | null;
 }
 
 interface UserData {
@@ -42,6 +44,12 @@ const Admin: React.FC = () => {
     const [passwordModalOpen, setPasswordModalOpen] = useState(false);
     const [userToChangePwd, setUserToChangePwd] = useState<{ id: string, email: string } | null>(null);
     const [newUserPassword, setNewUserPassword] = useState('');
+
+    // Sector Management State
+    const [activeTab, setActiveTab] = useState<'users' | 'sectors'>('users');
+    const [editingSector, setEditingSector] = useState<Sector | null>(null);
+    const [editSectorName, setEditSectorName] = useState('');
+    const [editBatchSize, setEditBatchSize] = useState(1);
 
     useEffect(() => {
         fetchData();
@@ -156,6 +164,34 @@ const Admin: React.FC = () => {
         }
     };
 
+    const handleUpdateSector = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingSector) return;
+
+        try {
+            const res = await fetch(`${API_URL}/api/sectors/${editingSector.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({
+                    name: editSectorName,
+                    maxBatchSize: editBatchSize
+                })
+            });
+
+            if (res.ok) {
+                const updated = await res.json();
+                setSectors(sectors.map(s => s.id === updated.id ? updated : s));
+                setEditingSector(null);
+                alert('Setor atualizado com sucesso!');
+            } else {
+                const err = await res.json();
+                alert(err.error || 'Erro ao atualizar setor');
+            }
+        } catch (error) {
+            alert('Erro de conexão');
+        }
+    };
+
     const handleLogout = () => {
         logout();
         navigate('/login');
@@ -173,6 +209,20 @@ const Admin: React.FC = () => {
                     <h1 className="text-xl font-bold">Painel de TI - Gestão de Acessos</h1>
                 </div>
                 <div className="flex flex-wrap items-center gap-4 mt-4 sm:mt-0">
+                    <div className="flex bg-slate-800 p-1 rounded-lg">
+                        <button 
+                            onClick={() => setActiveTab('users')}
+                            className={`px-4 py-2 rounded-md font-medium text-sm transition-all ${activeTab === 'users' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                        >
+                            Usuários
+                        </button>
+                        <button 
+                            onClick={() => setActiveTab('sectors')}
+                            className={`px-4 py-2 rounded-md font-medium text-sm transition-all ${activeTab === 'sectors' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                        >
+                            Setores
+                        </button>
+                    </div>
                     <button onClick={() => navigate('/admin/analytics')} className="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 text-sm text-white">
                         <BarChart3 className="w-4 h-4" /> Data Analytics
                     </button>
@@ -241,66 +291,108 @@ const Admin: React.FC = () => {
                         </div>
                     )}
 
-                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                        <table className="w-full text-left">
-                            <thead className="bg-slate-50 border-b border-slate-200">
-                                <tr>
-                                    <th className="px-6 py-4 font-semibold text-slate-700">E-mail</th>
-                                    <th className="px-6 py-4 font-semibold text-slate-700">Cargo</th>
-                                    <th className="px-6 py-4 font-semibold text-slate-700">Setor Vinculado</th>
-                                    <th className="px-6 py-4 font-semibold text-slate-700 text-right">Ação</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 text-slate-800">
-                                {isLoading ? (
+                    {activeTab === 'users' ? (
+                        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                            <table className="w-full text-left">
+                                <thead className="bg-slate-50 border-b border-slate-200">
                                     <tr>
-                                        <td colSpan={4} className="px-6 py-8 text-center text-slate-500">
-                                            Carregando usuários...
-                                        </td>
+                                        <th className="px-6 py-4 font-semibold text-slate-700">E-mail</th>
+                                        <th className="px-6 py-4 font-semibold text-slate-700">Cargo</th>
+                                        <th className="px-6 py-4 font-semibold text-slate-700">Setor Vinculado</th>
+                                        <th className="px-6 py-4 font-semibold text-slate-700 text-right">Ação</th>
                                     </tr>
-                                ) : users.map(u => (
-                                    <tr key={u.id} className="hover:bg-slate-50 transition-colors">
-                                        <td className="px-6 py-4 font-medium text-slate-900">{u.email}</td>
-                                        <td className="px-6 py-4">
-                                            <span className={`text-xs font-bold px-3 py-1 rounded-full ${u.role === 'ADMIN' ? 'bg-purple-100 text-purple-700' :
-                                                u.role === 'RECEPTION' ? 'bg-amber-100 text-amber-700' :
-                                                    'bg-blue-100 text-blue-700'
-                                                }`}>
-                                                {u.role === 'ADMIN' ? 'TI ADMIN' : u.role === 'RECEPTION' ? 'RECEPÇÃO' : 'ATENDENTE'}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-slate-600">
-                                            {u.sector?.name || <span className="text-slate-400 italic">Sem vínculo</span>}
-                                        </td>
-                                        <td className="px-6 py-4 text-right flex justify-end gap-2">
-                                            <button
-                                                onClick={() => openPasswordModal(u.id, u.email)}
-                                                className="p-2 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                                                title="Alterar Senha"
-                                            >
-                                                <KeyRound className="w-5 h-5" />
-                                            </button>
-
-                                            {u.id !== authUser?.id && (
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 text-slate-800">
+                                    {isLoading ? (
+                                        <tr>
+                                            <td colSpan={4} className="px-6 py-8 text-center text-slate-500">
+                                                Carregando usuários...
+                                            </td>
+                                        </tr>
+                                    ) : users.map(u => (
+                                        <tr key={u.id} className="hover:bg-slate-50 transition-colors">
+                                            <td className="px-6 py-4 font-medium text-slate-900">{u.email}</td>
+                                            <td className="px-6 py-4">
+                                                <span className={`text-xs font-bold px-3 py-1 rounded-full ${u.role === 'ADMIN' ? 'bg-purple-100 text-purple-700' :
+                                                    u.role === 'RECEPTION' ? 'bg-amber-100 text-amber-700' :
+                                                        'bg-blue-100 text-blue-700'
+                                                    }`}>
+                                                    {u.role === 'ADMIN' ? 'TI ADMIN' : u.role === 'RECEPTION' ? 'RECEPÇÃO' : 'ATENDENTE'}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 text-slate-600">
+                                                {u.sector?.name || <span className="text-slate-400 italic">Sem vínculo</span>}
+                                            </td>
+                                            <td className="px-6 py-4 text-right flex justify-end gap-2">
                                                 <button
-                                                    onClick={() => openDeleteModal(u.id, u.email)}
-                                                    className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                                    title="Deletar Usuário"
+                                                    onClick={() => openPasswordModal(u.id, u.email)}
+                                                    className="p-2 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                                                    title="Alterar Senha"
                                                 >
-                                                    <Trash2 className="w-5 h-5" />
+                                                    <KeyRound className="w-5 h-5" />
                                                 </button>
-                                            )}
-                                        </td>
+
+                                                {u.id !== authUser?.id && (
+                                                    <button
+                                                        onClick={() => openDeleteModal(u.id, u.email)}
+                                                        className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                        title="Deletar Usuário"
+                                                    >
+                                                        <Trash2 className="w-5 h-5" />
+                                                    </button>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                            {!isLoading && users.length === 0 && (
+                                <div className="p-8 text-center text-slate-500">
+                                    Nenhum usuário cadastrado.
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                            <table className="w-full text-left">
+                                <thead className="bg-slate-50 border-b border-slate-200">
+                                    <tr>
+                                        <th className="px-6 py-4 font-semibold text-slate-700">Nome do Setor</th>
+                                        <th className="px-6 py-4 font-semibold text-slate-700">Chamadas em Lote (Máx)</th>
+                                        <th className="px-6 py-4 font-semibold text-slate-700 text-right">Ação</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                        {!isLoading && users.length === 0 && (
-                            <div className="p-8 text-center text-slate-500">
-                                Nenhum usuário cadastrado.
-                            </div>
-                        )}
-                    </div>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 text-slate-800">
+                                    {isLoading ? (
+                                        <tr>
+                                            <td colSpan={3} className="px-6 py-8 text-center text-slate-500">
+                                                Carregando setores...
+                                            </td>
+                                        </tr>
+                                    ) : sectors.map(s => (
+                                        <tr key={s.id} className="hover:bg-slate-50 transition-colors">
+                                            <td className="px-6 py-4 font-bold text-slate-900">{s.name}</td>
+                                            <td className="px-6 py-4 font-mono text-blue-600 font-bold">
+                                                {s.maxBatchSize || 1} tickets simultâneos
+                                            </td>
+                                            <td className="px-6 py-4 text-right flex justify-end gap-2">
+                                                <button
+                                                    onClick={() => {
+                                                        setEditingSector(s);
+                                                        setEditSectorName(s.name);
+                                                        setEditBatchSize(s.maxBatchSize || 1);
+                                                    }}
+                                                    className="px-4 py-2 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg transition-all font-bold text-sm"
+                                                >
+                                                    Configurar Lote
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </div>
             </main>
 
@@ -371,6 +463,59 @@ const Admin: React.FC = () => {
                                     <button type="button" onClick={() => setPasswordModalOpen(false)} className="px-5 py-2.5 text-slate-600 hover:bg-slate-100 rounded-lg font-bold transition-colors">Cancelar</button>
                                     <button type="submit" className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold transition-colors flex items-center gap-2">
                                         <KeyRound className="w-4 h-4" /> Atualizar Senha
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL: EDIT SECTOR */}
+            {editingSector && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="p-6">
+                            <h3 className="text-xl font-bold text-slate-900 mb-2">Configurar Chamada em Lote</h3>
+                            <p className="text-slate-600 mb-6 font-medium">
+                                Definindo limites para o setor: <strong className="text-blue-600">{editingSector.name}</strong>
+                            </p>
+
+                            <form onSubmit={handleUpdateSector}>
+                                <div className="space-y-4 mb-6">
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1">Nome do Setor</label>
+                                        <input
+                                            type="text" required
+                                            value={editSectorName} onChange={e => setEditSectorName(e.target.value)}
+                                            className={theInputStyle}
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1">
+                                            Limite de Chamada Simultânea (Lote)
+                                        </label>
+                                        <div className="flex items-center gap-4 mt-2">
+                                            <input
+                                                type="range" min={1} max={10} step={1}
+                                                value={editBatchSize} onChange={e => setEditBatchSize(parseInt(e.target.value))}
+                                                className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                                            />
+                                            <span className="w-10 h-10 flex items-center justify-center bg-blue-600 text-white rounded-lg font-black text-xl">
+                                                {editBatchSize}
+                                            </span>
+                                        </div>
+                                        <p className="text-[10px] text-slate-500 mt-2 italic uppercase font-bold tracking-tighter leading-tight">
+                                            * Define quantos cidadãos podem ser chamados simultaneamente através da funcionalidade de chamada em lote.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-end gap-3">
+                                    <button type="button" onClick={() => setEditingSector(null)} className="px-5 py-2.5 text-slate-600 hover:bg-slate-100 rounded-lg font-bold transition-colors">Cancelar</button>
+                                    <button type="submit" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition-colors">
+                                        Salvar Configurações
                                     </button>
                                 </div>
                             </form>

@@ -49,9 +49,12 @@ const QueueDisplay: React.FC = () => {
   const [clock, setClock] = useState('');
   const [heroKey, setHeroKey] = useState(0);
   const [heroGlow, setHeroGlow] = useState(false);
-  const prevHeroCode = useRef<string | null>(null);
+  const [callQueue, setCallQueue] = useState<Ticket[]>([]);
+  const [displayHero, setDisplayHero] = useState<Ticket | null>(null);
+  const processedIdsRef = useRef<Set<string>>(new Set());
   const channelRef = useRef<RealtimeChannel | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const queueTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Clock ──────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -71,28 +74,68 @@ const QueueDisplay: React.FC = () => {
       if (!res.ok) return;
       const json: DisplayData = await res.json();
 
-      // Filter tickets to only include relevant ones: IN_SERVICE or WAITING
       const filteredTickets = json.tickets.filter(t => t.status === 'IN_SERVICE' || t.status === 'WAITING');
+      const inService = filteredTickets.filter(t => t.status === 'IN_SERVICE');
 
-      // Detect hero change (first IN_SERVICE ticket)
-      const newHero = filteredTickets.find(t => t.status === 'IN_SERVICE');
-      if (newHero && newHero.code !== prevHeroCode.current) {
-        prevHeroCode.current = newHero.code;
-        setHeroKey(k => k + 1);
-        setHeroGlow(true);
-        setTimeout(() => setHeroGlow(false), 3000);
-
-        // Play Loud notification sound (Alto e suave - Gerado pelo Web Audio API)
-        try {
-          audioManager.playLoudSmoothChime();
-        } catch(e) {}
-      } else if (!newHero) {
-        prevHeroCode.current = null;
+      // Detect new calls
+      const newCalls = inService.filter(t => !processedIdsRef.current.has(t.id));
+      
+      if (newCalls.length > 0) {
+        // Add new calls to the buffer queue
+        setCallQueue(prev => [...prev, ...newCalls]);
+        
+        // Update processed set
+        newCalls.forEach(t => processedIdsRef.current.add(t.id));
       }
+
+      // Cleanup processed set (remove IDs that are no longer in service)
+      const currentServiceIds = new Set(inService.map(t => t.id));
+      processedIdsRef.current.forEach(id => {
+        if (!currentServiceIds.has(id)) processedIdsRef.current.delete(id);
+      });
 
       setData({ ...json, tickets: filteredTickets });
     } catch (_) { }
   }, []);
+
+  // ── Process Call Queue (Staggered Delay) ──────────────────────────────────
+  useEffect(() => {
+    if (callQueue.length > 0 && !queueTimeoutRef.current) {
+        const processNext = () => {
+            setCallQueue(prev => {
+                if (prev.length === 0) {
+                    queueTimeoutRef.current = null;
+                    return prev;
+                };
+                
+                const [next, ...rest] = prev;
+                setDisplayHero(next);
+                setHeroKey(k => k + 1);
+                setHeroGlow(true);
+                setTimeout(() => setHeroGlow(false), 3000);
+
+                try {
+                    audioManager.playLoudSmoothChime();
+                } catch(e) {}
+
+                if (rest.length > 0) {
+                    queueTimeoutRef.current = setTimeout(processNext, 6000);
+                } else {
+                    queueTimeoutRef.current = null;
+                }
+                
+                return rest;
+            });
+        };
+
+        processNext();
+    }
+    
+    return () => {
+        if (queueTimeoutRef.current) clearTimeout(queueTimeoutRef.current);
+        queueTimeoutRef.current = null;
+    }
+  }, [callQueue.length]);
 
   // ── Supabase Realtime ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -122,11 +165,14 @@ const QueueDisplay: React.FC = () => {
   // ── Derived state ──────────────────────────────────────────────────────────
   const inServiceTickets = data.tickets.filter(t => t.status === 'IN_SERVICE');
 
-  // Hero is the MOST RECENT (last in array ordered by timestamp asc)
-  const heroTicket = inServiceTickets.length > 0 ? inServiceTickets[inServiceTickets.length - 1] : null;
+  // Hero is either the one being staggered OR the most recent one if queue is empty
+  const heroTicket = displayHero || (inServiceTickets.length > 0 ? inServiceTickets[inServiceTickets.length - 1] : null);
 
   // List is everything BEFORE the hero, limited to the last 12 previous calls, recent first
-  const listTickets: Ticket[] = inServiceTickets.slice(Math.max(0, inServiceTickets.length - 13), -1).reverse();
+  const listTickets: Ticket[] = inServiceTickets
+    .filter(t => t.id !== heroTicket?.id)
+    .slice(Math.max(0, inServiceTickets.length - 14), -1)
+    .reverse();
 
   return (
     <div style={styles.page}>
@@ -154,6 +200,14 @@ const QueueDisplay: React.FC = () => {
                 <div style={styles.heroDot} />
                 <span>{heroTicket.sectorName}</span>
               </div>
+              
+              {/* Batch feedback */}
+              {callQueue.length > 0 && (
+                <div style={styles.batchFeedback}>
+                  <div style={styles.batchProgress} className="batch-progress-bar" />
+                  <span>Mais {callQueue.length} {callQueue.length === 1 ? 'pessoa sendo chamada' : 'pessoas sendo chamadas'}...</span>
+                </div>
+              )}
             </div>
           ) : (
             <div style={styles.emptyState}>
@@ -239,6 +293,23 @@ const QueueDisplay: React.FC = () => {
         @keyframes activeDot {
           0%, 100% { transform: scale(1); opacity: 1; }
           50% { transform: scale(1.4); opacity: 0.6; }
+        }
+
+        @keyframes progressMove {
+          0% { left: -30%; }
+          100% { left: 100%; }
+        }
+
+        .batch-progress-bar::after {
+          content: "";
+          position: absolute;
+          top: 0;
+          left: 0;
+          height: 100%;
+          width: 30%;
+          background: #818CF8;
+          border-radius: 2px;
+          animation: progressMove 2s infinite linear;
         }
       `}</style>
     </div>
@@ -458,6 +529,29 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     gap: '8px',
   },
+  batchFeedback: {
+    marginTop: '30px',
+    padding: '12px 24px',
+    background: 'rgba(79, 70, 229, 0.15)',
+    border: '1px solid rgba(79, 70, 229, 0.3)',
+    borderRadius: '16px',
+    fontSize: '14px',
+    fontWeight: 700,
+    color: '#818CF8',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    gap: '8px',
+    animation: 'itemFadeIn 0.5s ease-out',
+  },
+  batchProgress: {
+    width: '100%',
+    height: '4px',
+    background: 'rgba(79, 70, 229, 0.2)',
+    borderRadius: '2px',
+    overflow: 'hidden',
+    position: 'relative' as const,
+  }
 };
 
 export default QueueDisplay;

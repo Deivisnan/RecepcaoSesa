@@ -30,15 +30,16 @@ model User {
 }
 
 model Sector {
-  id         String   @id @default(uuid())
-  name       String   @unique
-  status     String   @default("AVAILABLE") // AVAILABLE | BUSY | AWAY
-  queueCount Int      @default(0)
-  soundUrl   String?  // URL do áudio de chamada específico do setor
-  user       User?
-  visits     Visit[]
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id           String   @id @default(uuid())
+  name         String   @unique
+  status       String   @default("AVAILABLE") // AVAILABLE | BUSY | AWAY
+  queueCount   Int      @default(0)
+  soundUrl     String?  // URL do áudio de chamada específico do setor
+  maxBatchSize Int      @default(1) // Limite de chamadas simultâneas em lote
+  user         User?
+  visits       Visit[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model Citizen {

@@ -5,6 +5,7 @@ export interface Sector {
     name: string;
     status: SectorStatus;
     queueCount: number;
+    maxBatchSize?: number;
     soundUrl?: string;
     updatedAt: string;
 }
