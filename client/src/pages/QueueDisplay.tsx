@@ -126,19 +126,19 @@ const QueueDisplay: React.FC = () => {
                     // Agenda a fala repetida para 1.5s após o início do chime
                     setTimeout(() => {
                         const name = next.citizenName || "Cidadão";
-                        audioManager.speak(name, 3, 2000); // 3 vezes com 2s de intervalo
+                        audioManager.speak(name, 3, 1000); // 3 vezes com 1s de intervalo
                     }, 1500);
                 } catch(e) {}
 
-                // Define o tempo que este ticket ficará como "Hero" (10 segundos)
-                // Se houver mais na fila, chamará o próximo APÓS esses 10 segundos.
+                // Define o tempo que este ticket ficará como "Hero" (Reduzido para 3 segundos conforme solicitado)
                 queueTimeoutRef.current = setTimeout(() => {
                     if (rest.length > 0) {
                         processNext();
                     } else {
                         queueTimeoutRef.current = null;
+                        // Opcional: manter o último na tela ou limpar após X tempo
                     }
-                }, 10000);
+                }, 3000); 
                 
                 return rest;
             });
