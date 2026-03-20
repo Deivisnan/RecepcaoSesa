@@ -68,8 +68,8 @@ const Controller: React.FC = () => {
             const lastCall = localStorage.getItem(storageKey);
             if (lastCall) {
                 const diff = Math.floor((Date.now() - parseInt(lastCall)) / 1000);
-                if (diff < 300) { // 5 minutes = 300 seconds
-                    setCooldown(300 - diff);
+                if (diff < 180) { // 3 minutes = 180 seconds
+                    setCooldown(180 - diff);
                 } else {
                     setCooldown(0);
                     localStorage.removeItem(storageKey);
@@ -200,10 +200,10 @@ const Controller: React.FC = () => {
             // Set the first citizen from the batch as the current one
             setCurrentCitizen({ name: calledCitizens[0].citizen.name });
             
-            // Start cooldown
+            // Start cooldown (3 minutes)
             const timestamp = Date.now();
             localStorage.setItem(`@RecepcaoSesa:cooldown:${sector.id}`, timestamp.toString());
-            setCooldown(300);
+            setCooldown(180);
         }
     };
 
