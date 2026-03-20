@@ -401,8 +401,7 @@ const Controller: React.FC = () => {
                     </button>
                 )}
 
-                {/* Status buttons */}
-                {/* Status buttons */}
+                {/* Botões de Status */}
                 <div className="grid grid-cols-3 gap-3 w-full mt-2">
                     <button
                         className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all duration-300 ${sector.status === 'AVAILABLE'
@@ -439,7 +438,9 @@ const Controller: React.FC = () => {
                         <AlertTriangle className={`w-8 h-8 mb-2 transition-transform ${sector.status === 'AWAY' ? 'text-amber-500 scale-110' : 'text-slate-400'}`} />
                         <span className={`text-xs font-bold tracking-widest ${sector.status === 'AWAY' ? 'text-amber-400' : 'text-slate-400'}`}>AUSENTE</span>
                     </button>
-                     {/* Seção Operacional: Dar Baixa */}
+                </div>
+
+                {/* Seção Operacional: Dar Baixa */}
                 <div className="w-full bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 rounded-3xl p-6 mt-4 shadow-2xl transition-all duration-300 hover:border-emerald-500/20">
                     <div className="flex items-center gap-3 mb-5 px-1">
                         <div className="p-2 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
