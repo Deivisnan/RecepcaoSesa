@@ -95,10 +95,10 @@ class AudioManager {
         return;
       }
 
-      console.log(`[TTS] Falando: "${text}" (Restam ${remaining} repetições)`);
-
       const utterance = new SpeechSynthesisUtterance(text);
-      this.activeUtterance = utterance; // Previne Garbage Collection (Bug comum no Chrome)
+      this.activeUtterance = utterance; // Previne Garbage Collection
+      
+      console.log(`[TTS] Falando: "${text}" (Restam ${remaining} repetições)`, this.activeUtterance);
       
       utterance.lang = 'pt-BR';
       utterance.rate = 1.0;

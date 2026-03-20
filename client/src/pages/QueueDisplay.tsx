@@ -105,53 +105,57 @@ const QueueDisplay: React.FC = () => {
     } catch (_) { }
   }, []);
 
-  // ── Process Call Queue (Staggered Delay) ──────────────────────────────────
+  // Helper for staggered processing
+  const processNext = useCallback(() => {
+    setCallQueue(prev => {
+        if (prev.length === 0) {
+            queueTimeoutRef.current = null;
+            return prev;
+        };
+        
+        const [next, ...rest] = prev;
+        setDisplayHero(next);
+        setHeroKey(k => k + 1);
+        setHeroGlow(true);
+        setTimeout(() => setHeroGlow(false), 3000);
+
+        try {
+            audioManager.playLoudSmoothChime();
+            setTimeout(() => {
+                let name = next.citizenName || "Cidadão";
+                name = name.replace(/^paciente\s+/i, '');
+                audioManager.speak(name, 3, 1000);
+            }, 1500);
+        } catch(e) {}
+
+        queueTimeoutRef.current = setTimeout(() => {
+            if (rest.length > 0) {
+                processNext();
+            } else {
+                queueTimeoutRef.current = null;
+            }
+        }, 10000); 
+        
+        return rest;
+    });
+  }, []);
+
+  // Watcher to start the loop
   useEffect(() => {
     if (callQueue.length > 0 && !queueTimeoutRef.current) {
-        const processNext = () => {
-            setCallQueue(prev => {
-                if (prev.length === 0) {
-                    queueTimeoutRef.current = null;
-                    return prev;
-                };
-                
-                const [next, ...rest] = prev;
-                setDisplayHero(next);
-                setHeroKey(k => k + 1);
-                setHeroGlow(true);
-                setTimeout(() => setHeroGlow(false), 3000);
-
-                try {
-                    audioManager.playLoudSmoothChime();
-                    // Agenda a fala repetida para 1.5s após o início do chime
-                    setTimeout(() => {
-                        const name = next.citizenName || "Cidadão";
-                        audioManager.speak(name, 3, 1000); // 3 vezes com 1s de intervalo
-                    }, 1500);
-                } catch(e) {}
-
-                // Define o tempo que este ticket ficará como "Hero" (10 segundos conforme solicitado)
-                queueTimeoutRef.current = setTimeout(() => {
-                    if (rest.length > 0) {
-                        processNext();
-                    } else {
-                        queueTimeoutRef.current = null;
-                        // Opcional: manter o último na tela ou limpar após X tempo
-                    }
-                }, 10000); 
-                
-                return rest;
-            });
-        };
-
         processNext();
     }
-    
+  }, [callQueue, processNext]);
+
+  // Clean up only on unmount
+  useEffect(() => {
     return () => {
-        if (queueTimeoutRef.current) clearTimeout(queueTimeoutRef.current);
-        queueTimeoutRef.current = null;
-    }
-  }, [callQueue.length]);
+        if (queueTimeoutRef.current) {
+            clearTimeout(queueTimeoutRef.current);
+            queueTimeoutRef.current = null;
+        }
+    };
+  }, []);
 
   // ── Supabase Realtime ─────────────────────────────────────────────────────
   useEffect(() => {
