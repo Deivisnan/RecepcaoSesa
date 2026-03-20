@@ -439,42 +439,53 @@ const Controller: React.FC = () => {
                         <AlertTriangle className={`w-8 h-8 mb-2 transition-transform ${sector.status === 'AWAY' ? 'text-amber-500 scale-110' : 'text-slate-400'}`} />
                         <span className={`text-xs font-bold tracking-widest ${sector.status === 'AWAY' ? 'text-amber-400' : 'text-slate-400'}`}>AUSENTE</span>
                     </button>
-                </div>
+                     {/* Seção Operacional: Dar Baixa */}
+                <div className="w-full bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 rounded-3xl p-6 mt-4 shadow-2xl transition-all duration-300 hover:border-emerald-500/20">
+                    <div className="flex items-center gap-3 mb-5 px-1">
+                        <div className="p-2 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
+                            <CheckCheck className="w-5 h-5 text-emerald-400" />
+                        </div>
+                        <div>
+                            <h3 className="text-white font-black text-sm uppercase tracking-widest">Finalizar Atendimento</h3>
+                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">Digite o ticket para dar baixa no sistema</p>
+                        </div>
+                    </div>
 
-                {/* Dar Baixa */}
-                <div className="w-full bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 mt-4 shadow-xl transition-all duration-300 hover:border-emerald-500/30 focus-within:border-emerald-500/50 focus-within:shadow-[0_0_30px_rgba(16,185,129,0.1)]">
-                    <h3 className="text-slate-300 font-semibold mb-4 flex items-center gap-2">
-                        <CheckCheck className="w-5 h-5 text-emerald-400" />
-                        Finalizar Atendimento (Dar Baixa)
-                    </h3>
-                    <form onSubmit={handleCheckout} className="flex flex-col sm:flex-row gap-3">
+                    <form onSubmit={handleCheckout} className="flex flex-col sm:flex-row gap-3 items-stretch">
                         <div className="flex-1 relative group">
-                            <Hash className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-emerald-400 transition-colors" />
-                            <div className="flex items-center bg-slate-900 border-2 border-slate-700 rounded-xl pl-12 focus-within:border-emerald-500 transition-all">
-                                <span className="text-slate-500 font-bold pr-2 border-r border-slate-700">{sectorPrefix}</span>
-                                <input
-                                    type="text"
-                                    value={checkoutCode}
-                                    onChange={(e) => setCheckoutCode(e.target.value.toUpperCase())}
-                                    placeholder="000"
-                                    className="flex-1 bg-transparent py-4 px-3 text-white placeholder-slate-600 focus:outline-none font-bold text-xl tracking-widest"
-                                    maxLength={3}
-                                />
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-none z-10">
+                                <Hash className="w-4 h-4 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />
+                                <span className="text-slate-500 font-black text-xs border-r border-slate-700/50 pr-2 group-focus-within:text-emerald-500/50 group-focus-within:border-emerald-500/30 transition-all uppercase">{sectorPrefix}</span>
                             </div>
+                            <input
+                                type="text"
+                                value={checkoutCode}
+                                onChange={(e) => setCheckoutCode(e.target.value.toUpperCase())}
+                                placeholder="000"
+                                className="w-full h-14 bg-slate-900/50 border-2 border-slate-700/50 rounded-2xl pl-20 pr-4 text-white placeholder-slate-700 focus:outline-none focus:border-emerald-500/50 focus:bg-slate-900 transition-all font-black text-xl tracking-[0.2em] shadow-inner"
+                                maxLength={4}
+                            />
                         </div>
                         <button
                             type="submit"
                             disabled={checkoutLoading || !checkoutCode}
-                            className="bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-600 text-white font-black py-4 px-8 rounded-xl transition-all shadow-lg active:scale-95 flex items-center justify-center min-w-[160px]"
+                            className={`h-14 px-8 rounded-2xl font-black text-xs uppercase tracking-[0.15em] transition-all duration-300 flex items-center justify-center gap-2 shadow-lg active:scale-95 min-w-[180px] ${
+                                checkoutLoading || !checkoutCode
+                                ? 'bg-slate-800 border border-slate-700 text-slate-600 cursor-not-allowed'
+                                : 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-500 hover:to-emerald-400 hover:shadow-emerald-500/20 hover:-translate-y-0.5 border border-emerald-400/20'
+                            }`}
                         >
                             {checkoutLoading ? (
-                                <Loader2 className="w-6 h-6 animate-spin" />
+                                <Loader2 className="w-5 h-5 animate-spin" />
                             ) : (
-                                <span className="tracking-widest uppercase text-sm">Dar Baixa</span>
+                                <>
+                                    <span>Dar Baixa</span>
+                                    <CheckCheck className="w-4 h-4 opacity-50" />
+                                </>
                             )}
                         </button>
                     </form>
-                  </div>
+                </div>
             </main>
 
             {sector && (
