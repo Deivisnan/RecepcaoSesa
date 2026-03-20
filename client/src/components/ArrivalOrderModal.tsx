@@ -8,6 +8,7 @@ interface ArrivalOrderModalProps {
     onClose: () => void;
     sectorId: string;
     maxBatchSize: number;
+    currentInServiceCount: number;
     onCallSuccess: (calledCitizens: any[]) => void;
 }
 
@@ -25,12 +26,15 @@ export const ArrivalOrderModal: React.FC<ArrivalOrderModalProps> = ({
     onClose, 
     sectorId, 
     maxBatchSize,
+    currentInServiceCount,
     onCallSuccess 
 }) => {
     const [loading, setLoading] = useState(false);
     const [calling, setCalling] = useState(false);
     const [waitingList, setWaitingList] = useState<WaitingVisit[]>([]);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+    const availableSlots = Math.max(0, maxBatchSize - currentInServiceCount);
 
     const fetchWaiting = async () => {
         setLoading(true);
@@ -66,8 +70,8 @@ export const ArrivalOrderModal: React.FC<ArrivalOrderModalProps> = ({
         if (selectedIds.includes(id)) {
             setSelectedIds(prev => prev.filter(i => i !== id));
         } else {
-            if (selectedIds.length >= maxBatchSize) {
-                toast.warning(`Limite do setor é de ${maxBatchSize} chamadas por lote.`);
+            if (selectedIds.length >= availableSlots) {
+                toast.warning(`Limite de ${maxBatchSize} pessoas atingido (${currentInServiceCount} já em atendimento).`);
                 return;
             }
             setSelectedIds(prev => [...prev, id]);
@@ -117,7 +121,9 @@ export const ArrivalOrderModal: React.FC<ArrivalOrderModalProps> = ({
                         </div>
                         <div>
                             <h2 className="text-xl font-black text-white tracking-tight">Chamar em Lote</h2>
-                            <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Seleção de Novos Cidadãos</p>
+                            <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">
+                                {availableSlots} Vagas Disponíveis (Limite: {maxBatchSize})
+                            </p>
                         </div>
                     </div>
                     <button onClick={onClose} className="p-3 text-slate-400 hover:text-white hover:bg-slate-800 rounded-2xl transition-all">

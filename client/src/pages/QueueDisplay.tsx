@@ -460,14 +460,14 @@ const styles: Record<string, React.CSSProperties> = {
   },
   gridContainer: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-    gap: '16px',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: '12px',
     flex: 1,
     overflow: 'auto',
     paddingRight: '10px',
   },
   gridItem: {
-    height: '140px',
+    height: '100px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -476,7 +476,7 @@ const styles: Record<string, React.CSSProperties> = {
     animation: 'itemFadeIn 0.5s ease-out both',
   },
   gridCode: {
-    fontSize: '32px',
+    fontSize: '28px',
     fontWeight: 800,
     letterSpacing: '1px',
   },
