@@ -76,6 +76,34 @@ class AudioManager {
   }
 
   /**
+   * Converte texto em fala (TTS) usando a API nativa do navegador.
+   * Configurado para o idioma pt-BR e velocidade natural.
+   */
+  public speak(text: string) {
+    if (typeof window === 'undefined' || !window.speechSynthesis) {
+        console.warn("Speech Synthesis não suportado neste navegador.");
+        return;
+    }
+
+    // Cancela falas anteriores que possam estar na fila (opcional, dependendo da UX)
+    // window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'pt-BR';
+    utterance.rate = 1.0; // Velocidade natural
+    utterance.pitch = 1.0; // Tom natural
+
+    // Tenta encontrar uma voz em pt-BR disponível
+    const voices = window.speechSynthesis.getVoices();
+    const brVoice = voices.find(v => v.lang.includes('pt-BR'));
+    if (brVoice) {
+      utterance.voice = brVoice;
+    }
+
+    window.speechSynthesis.speak(utterance);
+  }
+
+  /**
    * Toca o som de notificação (Chime majestoso)
    * Agora isso pode ser chamado de qualquer lugar, desde que o áudio já esteja desbloqueado.
    */

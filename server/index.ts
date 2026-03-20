@@ -142,7 +142,10 @@ app.get('/api/queue/display', async (req, res) => {
             },
             orderBy: { timestamp: 'asc' },
             take: 20,
-            include: { sector: { select: { name: true } } }
+            include: { 
+                sector: { select: { name: true } },
+                citizen: { select: { name: true } }
+            }
         });
 
         // Calculate average service time heuristic:
@@ -167,6 +170,7 @@ app.get('/api/queue/display', async (req, res) => {
             id: v.id,
             code: v.code,
             sectorName: v.sector?.name ?? 'Geral',
+            citizenName: v.citizen?.name ?? 'Cidadão',
             status: v.ticketStatus,
             timestamp: v.timestamp
         }));

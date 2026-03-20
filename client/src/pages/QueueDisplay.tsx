@@ -10,6 +10,7 @@ interface Ticket {
   id: string;
   code: string;
   sectorName: string;
+  citizenName: string; // Adicionado para chamado por voz
   status: 'IN_SERVICE' | 'WAITING';
   timestamp: string;
 }
@@ -116,6 +117,11 @@ const QueueDisplay: React.FC = () => {
 
                 try {
                     audioManager.playLoudSmoothChime();
+                    // Agenda a fala para 1.5s após o início do chime (delay do toque)
+                    setTimeout(() => {
+                        const name = next.citizenName || "Cidadão";
+                        audioManager.speak(`Paciente ${name}, por favor comparecer ao atendimento.`);
+                    }, 1500);
                 } catch(e) {}
 
                 if (rest.length > 0) {
