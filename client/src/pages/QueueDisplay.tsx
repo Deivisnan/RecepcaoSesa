@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { API_URL } from '../config/apiConfig';
 import { supabase } from '../config/supabaseConfig';
 import { RealtimeChannel } from '@supabase/supabase-js';
-
+import { audioManager } from '../utils/audioManager';
+import { useAudioUnlock } from '../hooks/useAudioUnlock';
 // ── Types ────────────────────────────────────────────────────────────────────
 interface Ticket {
   id: string;
@@ -28,61 +29,7 @@ const COLORS = {
   border: 'rgba(255,255,255,0.08)',
   cardBg: 'rgba(255,255,255,0.03)',
 };
-// ── Audio Helper ─────────────────────────────────────────────────────────────
-const playLoudSmoothChime = () => {
-  try {
-    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-    
-    // Função para tocar uma nota com envelope suave (attack suave, release longo)
-    const playNote = (freq: number, start: number, dur: number, vol: number) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      
-      // Delay simples para ressonância (eco suave)
-      const delay = ctx.createDelay();
-      delay.delayTime.value = 0.2;
-      const delayGain = ctx.createGain();
-      delayGain.gain.value = 0.25;
-      
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      gain.connect(delay);
-      delay.connect(delayGain);
-      delayGain.connect(ctx.destination);
-      
-      osc.type = 'sine'; // Onda senoidal para um som bem "suave" (soft/smooth)
-      osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
-      
-      // Envelope
-      gain.gain.setValueAtTime(0, ctx.currentTime + start);
-      gain.gain.linearRampToValueAtTime(vol, ctx.currentTime + start + 0.1); // Attack suave
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + dur); // Release longo
-      
-      osc.start(ctx.currentTime + start);
-      osc.stop(ctx.currentTime + start + dur);
-    };
-
-    // Sequência de notas: Um majestoso "Ding-Dong", volumoso e suave.
-    const t0 = 0;
-    const t1 = 0.6;
-
-    // BING (Mi Maior)
-    playNote(659.25, t0, 3.0, 0.7); // E5
-    playNote(830.61, t0, 3.0, 0.4); // G#5
-    playNote(329.63, t0, 3.5, 0.7); // E4 (base grave poderosa)
-
-    // BONG (Dó sustenido menor)
-    playNote(554.37, t1, 4.0, 0.7); // C#5
-    playNote(659.25, t1, 4.0, 0.4); // E5
-    playNote(277.18, t1, 4.5, 0.7); // C#4 (base grave prolongada)
-
-  } catch (e) {
-    console.error("Audio synth error:", e);
-  }
-};
+// Audio handled by global audioManager
 
 // ── Helper to determine ticket visual status ────────────────────────────────
 const getTicketStatusInfo = (ticket: Ticket, indexInList: number) => {
@@ -97,6 +44,7 @@ const getTicketStatusInfo = (ticket: Ticket, indexInList: number) => {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 const QueueDisplay: React.FC = () => {
+  const { isUnlocked, unlockManual } = useAudioUnlock();
   const [data, setData] = useState<DisplayData>({ tickets: [], avgWaitMinutes: null });
   const [clock, setClock] = useState('');
   const [heroKey, setHeroKey] = useState(0);
@@ -136,7 +84,7 @@ const QueueDisplay: React.FC = () => {
 
         // Play Loud notification sound (Alto e suave - Gerado pelo Web Audio API)
         try {
-          playLoudSmoothChime();
+          audioManager.playLoudSmoothChime();
         } catch(e) {}
       } else if (!newHero) {
         prevHeroCode.current = null;
@@ -245,6 +193,13 @@ const QueueDisplay: React.FC = () => {
           </div>
         </section>
       </main>
+
+      {/* ── ALERTA DE ÁUDIO (UX Melhorado) ─────────────────────────────────── */}
+      {!isUnlocked && (
+        <div style={styles.audioAlert} onClick={unlockManual}>
+          🔔 Clique aqui (ou em qualquer lugar) para ativar os avisos sonoros
+        </div>
+      )}
 
       {/* ── FOOTER LEGEND ──────────────────────────────────────────────────── */}
       <footer style={styles.footer}>
@@ -485,6 +440,23 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#1E293B',
     textDecoration: 'none',
     transition: 'color 0.2s',
+  },
+  audioAlert: {
+    position: 'absolute' as const,
+    top: '20px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    background: 'rgba(245, 158, 11, 0.95)',
+    color: '#000',
+    padding: '12px 24px',
+    borderRadius: '12px',
+    fontWeight: 'bold',
+    zIndex: 9999,
+    cursor: 'pointer',
+    boxShadow: '0 4px 15px rgba(245, 158, 11, 0.4)',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
   },
 };
 
