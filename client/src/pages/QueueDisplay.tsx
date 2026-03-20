@@ -63,8 +63,12 @@ const QueueDisplay: React.FC = () => {
   const fetchData = useCallback(async () => {
     try {
       const res = await fetch(`${API_URL}/api/queue/display`);
-      if (!res.ok) return;
+      if (!res.ok) {
+        console.error(`[Display] Fetch failed with status: ${res.status}`);
+        return;
+      }
       const json: DisplayData = await res.json();
+      console.log(`[Display] Dados recebidos: ${json.tickets.length} tickets`);
 
       const filteredTickets = json.tickets.filter(t => t.status === 'IN_SERVICE' || t.status === 'WAITING');
       const inService = filteredTickets.filter(t => t.status === 'IN_SERVICE');
@@ -73,6 +77,8 @@ const QueueDisplay: React.FC = () => {
       const newCalls = inService.filter(t => !processedIdsRef.current.has(t.id));
       
       if (newCalls.length > 0) {
+        console.log(`[Display] Detectados ${newCalls.length} novos chamados!`, newCalls.map(c => c.code));
+        // Se for a primeira carga, apenas marca como processado sem colocar na fila de anúncio
         // Se for a primeira carga, apenas marca como processado sem colocar na fila de anúncio
         if (isFirstFetchRef.current) {
           newCalls.forEach(t => processedIdsRef.current.add(t.id));
@@ -119,16 +125,19 @@ const QueueDisplay: React.FC = () => {
         } catch(e) {}
 
         queueTimeoutRef.current = setTimeout(() => {
+            console.log(`[Display] Ciclo Hero encerrado para: ${next.code}`);
             if (rest.length > 0) {
+                console.log(`[Display] Processando próximo da fila residual (${rest.length} pendentes)`);
                 processNext();
             } else {
+                console.log('[Display] Sem mais chamados pendentes no ciclo atual');
                 queueTimeoutRef.current = null;
             }
         }, 10000); 
         
         return rest;
     });
-  }, []);
+  }, [setCallQueue, setDisplayHero]); // Add deps though they are stable
 
   // Watcher to start the loop
   useEffect(() => {
