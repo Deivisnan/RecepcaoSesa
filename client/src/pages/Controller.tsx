@@ -2,11 +2,12 @@ import React, { useMemo, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRealTimeStatus } from '../useRealTimeStatus';
 import { useAuth } from '../contexts/AuthContext';
-import { LogOut, CheckCircle2, AlertTriangle, ShieldAlert, Users, PhoneCall, Hash, CheckCheck, BarChart3 } from 'lucide-react';
+import { LogOut, CheckCircle2, AlertTriangle, ShieldAlert, Users, PhoneCall, Hash, CheckCheck, BarChart3, ClipboardList } from 'lucide-react';
 import { API_URL } from '../config/apiConfig';
 import { toast } from 'sonner';
 import { SectorDashboardModal } from '../components/SectorDashboardModal';
 import { ArrivalOrderModal } from '../components/ArrivalOrderModal';
+import { InServiceOrderModal } from '../components/InServiceOrderModal';
 
 const Controller: React.FC = () => {
     const { user, logout } = useAuth();
@@ -21,6 +22,7 @@ const Controller: React.FC = () => {
     const [currentCitizen, setCurrentCitizen] = useState<{ name: string } | null>(null);
     const [isDashboardOpen, setIsDashboardOpen] = useState(false);
     const [isArrivalOrderOpen, setIsArrivalOrderOpen] = useState(false);
+    const [isInServiceOrderOpen, setIsInServiceOrderOpen] = useState(false);
 
     const sector = useMemo(() => {
         if (!user?.sectorName) return undefined;
@@ -351,7 +353,18 @@ const Controller: React.FC = () => {
                         }`}
                     >
                         <Users className="w-5 h-5" />
-                        <span className="text-lg tracking-tight uppercase">Ordem de Chegada (Lote)</span>
+                        <span className="text-lg tracking-tight uppercase">Chamar em Lote</span>
+                    </button>
+                )}
+
+                {/* New: Ordem de Atendimento (In-Service List) */}
+                {sector && (
+                    <button
+                        onClick={() => setIsInServiceOrderOpen(true)}
+                        className="w-full group mt-[-5px] flex items-center justify-center gap-2 p-5 rounded-2xl font-black transition-all duration-300 active:scale-[0.98] border-2 shadow-lg bg-emerald-900/30 border-emerald-500/30 text-emerald-400 hover:bg-emerald-900/50 hover:border-emerald-400"
+                    >
+                        <ClipboardList className="w-5 h-5" />
+                        <span className="text-lg tracking-tight uppercase">Ordem de Atendimento</span>
                     </button>
                 )}
 
@@ -446,6 +459,14 @@ const Controller: React.FC = () => {
                     sectorId={sector.id}
                     maxBatchSize={sector.maxBatchSize || 1}
                     onCallSuccess={handleBatchCallSuccess}
+                />
+            )}
+
+            {sector && (
+                <InServiceOrderModal
+                    isOpen={isInServiceOrderOpen}
+                    onClose={() => setIsInServiceOrderOpen(false)}
+                    sectorId={sector.id}
                 />
             )}
         </div>

@@ -616,6 +616,29 @@ app.get('/api/sectors/:id/waiting', authenticateToken, async (req, res) => {
     }
 });
 
+app.get('/api/sectors/:id/in-service', authenticateToken, async (req, res) => {
+    try {
+        const sectorId = req.params.id as string;
+        const startOfToday = new Date();
+        todayReset(startOfToday);
+
+        const inServiceVisits = await prisma.visit.findMany({
+            where: {
+                sectorId,
+                ticketStatus: 'IN_SERVICE',
+                timestamp: { gte: startOfToday }
+            },
+            orderBy: { timestamp: 'asc' },
+            include: { citizen: { select: { name: true, cpf: true } } }
+        });
+
+        res.json(inServiceVisits);
+    } catch (error) {
+        console.error('Error fetching in-service visits:', error);
+        res.status(500).json({ error: 'Failed to fetch in-service list' });
+    }
+});
+
 app.post('/api/sectors/:id/call-batch', authenticateToken, async (req, res) => {
     try {
         const sectorId = req.params.id as string;

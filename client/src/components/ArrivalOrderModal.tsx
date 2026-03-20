@@ -116,8 +116,8 @@ export const ArrivalOrderModal: React.FC<ArrivalOrderModalProps> = ({
                             <Users className="w-6 h-6 text-indigo-400" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-black text-white tracking-tight">Ordem de Chegada</h2>
-                            <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Lista de Espera Real</p>
+                            <h2 className="text-xl font-black text-white tracking-tight">Chamar em Lote</h2>
+                            <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Seleção de Novos Cidadãos</p>
                         </div>
                     </div>
                     <button onClick={onClose} className="p-3 text-slate-400 hover:text-white hover:bg-slate-800 rounded-2xl transition-all">
