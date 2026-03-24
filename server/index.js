@@ -100,7 +100,7 @@ app.get('/api/sectors', async (req, res) => {
         res.json(sectors);
     }
     catch (error) {
-        res.status(500).json({ error: 'Failed to fetch sectors' });
+        res.status(500).json({ error: 'Failed to fetch sectors', details: error.message, stack: error.stack });
     }
 });
 app.get('/api/sectors/:id', async (req, res) => {

@@ -32,14 +32,16 @@ model User {
 model Sector {
   id           String   @id @default(uuid())
   name         String   @unique
-  status       String   @default("AVAILABLE") // AVAILABLE | BUSY | AWAY
-  queueCount   Int      @default(0)
-  soundUrl     String?  // URL do áudio de chamada específico do setor
-  callCooldown Int      @default(120) // Tempo em segundos de espera mandatória entre cada chamada
-  user         User?
-  visits       Visit[]
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  status              String   @default("AVAILABLE") // AVAILABLE | BUSY | AWAY
+  queueCount          Int      @default(0)
+  soundUrl            String?  // URL do áudio de chamada específico do setor
+  callCooldown        Int      @default(120) // Tempo em segundos de espera mandatória entre cada chamada
+  hasWaitingRoom      Boolean  @default(false)
+  waitingRoomCapacity Int      @default(5)
+  user                User?
+  visits              Visit[]
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 }
 
 model Citizen {
@@ -52,14 +54,15 @@ model Citizen {
 }
 
 model Visit {
-  id           String   @id @default(uuid())
-  code         String?  @unique  // Código único do ticket ex: A-045
-  ticketStatus String?  @default("WAITING") // WAITING | IN_SERVICE | FINISHED
-  citizenId    String
-  citizen      Citizen  @relation(fields: [citizenId], references: [cpf])
-  sectorId     String
-  sector       Sector   @relation(fields: [sectorId], references: [id])
-  userId       String?
-  user         User?    @relation(fields: [userId], references: [id])
-  timestamp    DateTime @default(now())
+  id                    String   @id @default(uuid())
+  code                  String?  @unique  // Código único do ticket ex: A-045
+  ticketStatus          String?  @default("WAITING") // WAITING | IN_WAITING_ROOM | IN_SERVICE | FINISHED
+  citizenId             String
+  citizen               Citizen  @relation(fields: [citizenId], references: [cpf])
+  sectorId              String
+  sector                Sector   @relation(fields: [sectorId], references: [id])
+  userId                String?
+  user                  User?    @relation(fields: [userId], references: [id])
+  calledToWaitingRoomAt DateTime? 
+  timestamp             DateTime @default(now())
 }

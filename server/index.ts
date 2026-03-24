@@ -134,10 +134,10 @@ app.get('/api/queue/display', async (req, res) => {
         const startOfToday = new Date();
         startOfToday.setHours(0, 0, 0, 0);
 
-        // Fetch today's active tickets (IN_SERVICE and WAITING), ordered by timestamp asc
+        // Fetch today's active tickets (IN_SERVICE, WAITING, and IN_WAITING_ROOM), ordered by timestamp asc
         const activeVisits = await prisma.visit.findMany({
             where: {
-                ticketStatus: { in: ['IN_SERVICE', 'WAITING'] },
+                ticketStatus: { in: ['IN_SERVICE', 'WAITING', 'IN_WAITING_ROOM'] },
                 timestamp: { gte: startOfToday }
             },
             orderBy: { timestamp: 'asc' },
@@ -531,19 +531,45 @@ app.post('/api/sectors/:id/call-next', authenticateToken, async (req, res) => {
     try {
         const sectorId = req.params.id as string;
 
-        // Get next WAITING visit in FIFO order (only from TODAY)
+        // Get sector info to check if it has a waiting room
+        const sector = await prisma.sector.findUnique({
+            where: { id: sectorId }
+        });
+
+        if (!sector) {
+           return res.status(404).json({ error: 'Sector not found' });
+        }
+
         const startOfToday = new Date();
         startOfToday.setHours(0, 0, 0, 0);
 
-        const nextVisit = await prisma.visit.findFirst({
-            where: {
-                sectorId,
-                ticketStatus: 'WAITING',
-                timestamp: { gte: startOfToday }
-            },
-            orderBy: { timestamp: 'asc' },
-            include: { citizen: true, sector: true }
-        });
+        let nextVisit = null;
+
+        // 1. If Sector has Waiting Room, we must call from IN_WAITING_ROOM first
+        if (sector.hasWaitingRoom) {
+            nextVisit = await prisma.visit.findFirst({
+                where: {
+                    sectorId,
+                    ticketStatus: 'IN_WAITING_ROOM',
+                    timestamp: { gte: startOfToday }
+                },
+                orderBy: { calledToWaitingRoomAt: 'asc' }, // FIFO in the waiting room
+                include: { citizen: true, sector: true }
+            });
+        }
+
+        // 2. If no one in waiting room OR sector doesn't use waiting room, call from WAITING
+        if (!nextVisit) {
+            nextVisit = await prisma.visit.findFirst({
+                where: {
+                    sectorId,
+                    ticketStatus: 'WAITING',
+                    timestamp: { gte: startOfToday }
+                },
+                orderBy: { timestamp: 'asc' },
+                include: { citizen: true, sector: true }
+            });
+        }
 
         if (!nextVisit) {
             return res.status(404).json({ error: 'Nenhum cidadão aguardando na fila.' });
@@ -606,7 +632,7 @@ app.get('/api/sectors/:id/waiting', authenticateToken, async (req, res) => {
         const waitingVisits = await prisma.visit.findMany({
             where: {
                 sectorId,
-                ticketStatus: 'WAITING',
+                ticketStatus: { in: ['WAITING', 'IN_WAITING_ROOM'] },
                 timestamp: { gte: startOfToday }
             },
             orderBy: { timestamp: 'asc' },
@@ -617,6 +643,81 @@ app.get('/api/sectors/:id/waiting', authenticateToken, async (req, res) => {
     } catch (error) {
         console.error('Error fetching waiting visits:', error);
         res.status(500).json({ error: 'Failed to fetch waiting list' });
+    }
+});
+
+// --- NOVO REGISTRO: MANDAR PARA A SALA DE ESPERA ---
+app.post('/api/sectors/:id/call-to-waiting-room', authenticateToken, async (req, res) => {
+    try {
+        const sectorId = req.params.id as string;
+
+        const sector = await prisma.sector.findUnique({ where: { id: sectorId } });
+        if (!sector) return res.status(404).json({ error: 'Sector not found' });
+        if (!sector.hasWaitingRoom) return res.status(400).json({ error: 'Setor não possui sala de espera configurada.' });
+
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+
+        // 1. Check Capacity
+        const currentInRoom = await prisma.visit.count({
+            where: {
+                sectorId,
+                ticketStatus: 'IN_WAITING_ROOM',
+                timestamp: { gte: startOfToday }
+            }
+        });
+
+        if (currentInRoom >= sector.waitingRoomCapacity) {
+            return res.status(400).json({ error: 'A sala de espera está cheia.' });
+        }
+
+        // 2. Check Cooldown
+        const lastCalled = await prisma.visit.findFirst({
+            where: {
+                sectorId,
+                ticketStatus: { in: ['IN_WAITING_ROOM', 'IN_SERVICE', 'FINISHED'] }, // Qualquer um que já passou da recepção geral
+                calledToWaitingRoomAt: { not: null },
+                timestamp: { gte: startOfToday }
+            },
+            orderBy: { calledToWaitingRoomAt: 'desc' }
+        });
+
+        if (lastCalled && lastCalled.calledToWaitingRoomAt) {
+            const diffInSeconds = Math.floor((new Date().getTime() - lastCalled.calledToWaitingRoomAt.getTime()) / 1000);
+            if (diffInSeconds < sector.callCooldown) {
+                return res.status(429).json({ error: `Aguarde o intervalo de chamada. Faltam ${sector.callCooldown - diffInSeconds} segundos.` });
+            }
+        }
+
+        // 3. Find next in QUEUE
+        const nextVisit = await prisma.visit.findFirst({
+            where: {
+                sectorId,
+                ticketStatus: 'WAITING',
+                timestamp: { gte: startOfToday }
+            },
+            orderBy: { timestamp: 'asc' },
+            include: { citizen: true, sector: true }
+        });
+
+        if (!nextVisit) {
+            return res.status(404).json({ error: 'Nenhum cidadão aguardando na fila da recepção.' });
+        }
+
+        // 4. Update to IN_WAITING_ROOM
+        const updatedVisit = await prisma.visit.update({
+            where: { id: nextVisit.id },
+            data: { 
+                ticketStatus: 'IN_WAITING_ROOM',
+                calledToWaitingRoomAt: new Date()
+            },
+            include: { citizen: true, sector: true }
+        });
+
+        res.json(updatedVisit);
+    } catch (error) {
+        console.error('Error calling to waiting room:', error);
+        res.status(500).json({ error: 'Failed to call to waiting room' });
     }
 });
 
@@ -651,14 +752,16 @@ app.get('/api/sectors/:id/in-service', authenticateToken, async (req, res) => {
 app.patch('/api/sectors/:id', authenticateToken, requireAdmin, async (req, res) => {
     try {
         const id = req.params.id as string;
-        const { name, callCooldown, soundUrl } = req.body;
+        const { name, callCooldown, soundUrl, hasWaitingRoom, waitingRoomCapacity } = req.body;
 
         const updatedSector = await prisma.sector.update({
             where: { id },
             data: { 
                 name, 
                 callCooldown: callCooldown !== undefined ? parseInt(callCooldown) : undefined,
-                soundUrl 
+                soundUrl,
+                hasWaitingRoom: hasWaitingRoom !== undefined ? Boolean(hasWaitingRoom) : undefined,
+                waitingRoomCapacity: waitingRoomCapacity !== undefined ? parseInt(waitingRoomCapacity) : undefined
             },
         });
 

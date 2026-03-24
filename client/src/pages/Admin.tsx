@@ -9,6 +9,8 @@ interface Sector {
     name: string;
     callCooldown: number;
     soundUrl: string | null;
+    hasWaitingRoom: boolean;
+    waitingRoomCapacity: number;
 }
 
 interface UserData {
@@ -50,6 +52,8 @@ const Admin: React.FC = () => {
     const [editingSector, setEditingSector] = useState<Sector | null>(null);
     const [editSectorName, setEditSectorName] = useState('');
     const [editCallCooldown, setEditCallCooldown] = useState(120);
+    const [editHasWaitingRoom, setEditHasWaitingRoom] = useState(false);
+    const [editWaitingRoomCapacity, setEditWaitingRoomCapacity] = useState(5);
 
     useEffect(() => {
         fetchData();
@@ -174,7 +178,9 @@ const Admin: React.FC = () => {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({
                     name: editSectorName,
-                    callCooldown: editCallCooldown
+                    callCooldown: editCallCooldown,
+                    hasWaitingRoom: editHasWaitingRoom,
+                    waitingRoomCapacity: editWaitingRoomCapacity
                 })
             });
 
@@ -381,6 +387,8 @@ const Admin: React.FC = () => {
                                                         setEditingSector(s);
                                                         setEditSectorName(s.name);
                                                         setEditCallCooldown(s.callCooldown || 120);
+                                                        setEditHasWaitingRoom(s.hasWaitingRoom || false);
+                                                        setEditWaitingRoomCapacity(s.waitingRoomCapacity || 5);
                                                     }}
                                                     className="px-4 py-2 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg transition-all font-bold text-sm"
                                                 >
@@ -508,12 +516,38 @@ const Admin: React.FC = () => {
                                             </div>
                                         </div>
                                         <p className="text-[10px] text-slate-500 mt-2 italic uppercase font-bold tracking-tighter leading-tight">
-                                            * Define quantos segundos a recepção e demais usuários deste setor deverão obrigatoriamente aguardar para clicar em "Chamar Próximo" novamente.
+                                            * Define quantos segundos a recepção e demais usuários deste setor deverão obrigatoriamente aguardar para clicar em "Chamar Próximo" ou chamar para a sala de espera novamente.
                                         </p>
+                                    </div>
+
+                                    <div className="pt-4 border-t border-slate-100">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div>
+                                                <label className="block text-sm font-bold text-slate-700">Sala de Espera Interna</label>
+                                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">Ativar fluxo de sala de espera (pré-atendimento)</p>
+                                            </div>
+                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                <input type="checkbox" className="sr-only peer" checked={editHasWaitingRoom} onChange={e => setEditHasWaitingRoom(e.target.checked)} />
+                                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                            </label>
+                                        </div>
+                                        
+                                        {editHasWaitingRoom && (
+                                            <div className="animate-in slide-in-from-top-2 fade-in duration-200">
+                                                <label className="block text-sm font-bold text-slate-700 mb-1">
+                                                    Capacidade da Sala (Pessoas)
+                                                </label>
+                                                <input
+                                                    type="number" min={1} max={50} required
+                                                    value={editWaitingRoomCapacity} onChange={e => setEditWaitingRoomCapacity(parseInt(e.target.value))}
+                                                    className={theInputStyle}
+                                                />
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
-                                <div className="flex justify-end gap-3">
+                                <div className="flex justify-end gap-3 pt-2">
                                     <button type="button" onClick={() => setEditingSector(null)} className="px-5 py-2.5 text-slate-600 hover:bg-slate-100 rounded-lg font-bold transition-colors">Cancelar</button>
                                     <button type="submit" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition-colors">
                                         Salvar Configurações

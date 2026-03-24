@@ -21,6 +21,8 @@ const Controller: React.FC = () => {
     const [currentCitizen, setCurrentCitizen] = useState<{ name: string } | null>(null);
     const [isDashboardOpen, setIsDashboardOpen] = useState(false);
     const [isInServiceOrderOpen, setIsInServiceOrderOpen] = useState(false);
+    const [waitingRoomPatients, setWaitingRoomPatients] = useState<any[]>([]);
+    const [callingToWaitingRoom, setCallingToWaitingRoom] = useState(false);
 
     // Fetch the oldest IN_SERVICE visit to set as current and count them
     const fetchNextInService = useCallback(async (sId: string) => {
@@ -42,6 +44,22 @@ const Controller: React.FC = () => {
         }
     }, []);
 
+    const fetchWaitingRoom = useCallback(async (sId: string) => {
+        try {
+            const token = localStorage.getItem('@RecepcaoSesa:token');
+            const res = await fetch(`${API_URL}/api/sectors/${sId}/waiting`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                const inRoom = data.filter((v: any) => v.ticketStatus === 'IN_WAITING_ROOM');
+                setWaitingRoomPatients(inRoom);
+            }
+        } catch (error) {
+            console.error("Error fetching waiting room:", error);
+        }
+    }, []);
+
     const sector = useMemo(() => {
         if (!user?.sectorName) return undefined;
         return sectors.find(s => s.name.toLowerCase() === user.sectorName?.toLowerCase());
@@ -51,10 +69,13 @@ const Controller: React.FC = () => {
     useEffect(() => {
         if (sector?.id) {
             fetchNextInService(sector.id);
+            if (sector.hasWaitingRoom) {
+               fetchWaitingRoom(sector.id);
+            }
         }
-    }, [sector?.id, fetchNextInService]);
+    }, [sector?.id, sector?.hasWaitingRoom, fetchNextInService, fetchWaitingRoom]);
 
-    // Handle Cooldown Timer
+    // Handle Cooldown Timer (For general call / waiting room call)
     useEffect(() => {
         if (!sector) return;
 
@@ -176,18 +197,50 @@ const Controller: React.FC = () => {
                     setCurrentCitizen({ name: data.citizen.name });
                 }
 
+                // Clear cooldown immediately on checkout to allow calling next
+                setCooldown(0);
+                if (sector) {
+                    localStorage.removeItem(`@RecepcaoSesa:cooldown:${sector.id}`);
+                }
+            } else {
+                const err = await res.json();
+                toast.error(err.error || 'Nenhum cidadão na fila / ou na sala de espera.');
+            }
+        } catch {
+            toast.error('Erro de conexão');
+        } finally {
+            setCallingNext(false);
+        }
+    };
+
+    const handleCallToWaitingRoom = async () => {
+        if (!sector || cooldown > 0) return;
+        setCallingToWaitingRoom(true);
+        try {
+            const token = localStorage.getItem('@RecepcaoSesa:token');
+            const res = await fetch(`${API_URL}/api/sectors/${sector.id}/call-to-waiting-room`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                toast.success(`${data.citizen?.name || 'Próximo'} chamado para a Sala de Espera`);
+
+                // Update waiting room list
+                fetchWaitingRoom(sector.id);
+
                 // Start cooldown
                 const timestamp = Date.now();
                 localStorage.setItem(`@RecepcaoSesa:cooldown:${sector.id}`, timestamp.toString());
                 setCooldown((sector as any).callCooldown ?? 120);
             } else {
                 const err = await res.json();
-                toast.error(err.error || 'Nenhum cidadão na fila');
+                toast.error(err.error || 'Erro ao chamar para a sala de espera.');
             }
         } catch {
             toast.error('Erro de conexão');
         } finally {
-            setCallingNext(false);
+            setCallingToWaitingRoom(false);
         }
     };
 
@@ -221,6 +274,9 @@ const Controller: React.FC = () => {
                 // Automatically fetch next in service
                 if (sector) {
                     fetchNextInService(sector.id);
+                    if (sector.hasWaitingRoom) {
+                        fetchWaitingRoom(sector.id);
+                    }
                 }
 
                 // Clear cooldown immediately on checkout to allow calling next
@@ -326,7 +382,78 @@ const Controller: React.FC = () => {
                     </div>
                 )}
 
-                {/* Chamar Próximo */}
+                {/* Waiting Room View */}
+                {sector.hasWaitingRoom && (
+                    <div className="w-full bg-slate-800/20 border border-slate-700/50 rounded-2xl p-5 shadow-inner mt-2">
+                         <div className="flex justify-between items-center mb-3">
+                            <h3 className="text-white font-bold flex items-center gap-2">
+                                <Users className="w-4 h-4 text-emerald-400" />
+                                Sala de Espera Interna
+                            </h3>
+                            <span className="text-sm font-mono bg-slate-900 border border-slate-700 px-3 py-1 rounded-full text-slate-300">
+                                {waitingRoomPatients.length} / {sector.waitingRoomCapacity || 5}
+                            </span>
+                         </div>
+                         
+                         {waitingRoomPatients.length > 0 ? (
+                             <ul className="space-y-2 mb-4">
+                                 {waitingRoomPatients.map(p => (
+                                     <li key={p.id} className="bg-slate-900/50 border border-slate-700 p-3 rounded-lg flex justify-between items-center">
+                                         <div>
+                                            <span className="text-white font-bold block">{p.citizen.name}</span>
+                                            <span className="text-xs text-slate-400 font-mono">Ticket: {p.code}</span>
+                                         </div>
+                                     </li>
+                                 ))}
+                             </ul>
+                         ) : (
+                             <p className="text-sm text-slate-500 italic mb-4 text-center py-2 bg-slate-900/30 rounded-lg">A sala está vazia.</p>
+                         )}
+
+                         <div className="flex flex-col gap-3">
+                             <button
+                                 onClick={handleCallToWaitingRoom}
+                                 disabled={callingToWaitingRoom || sector.queueCount === 0 || cooldown > 0 || (waitingRoomPatients.length >= (sector.waitingRoomCapacity || 5))}
+                                 className={`w-full group relative overflow-hidden flex items-center justify-center gap-2 p-4 rounded-xl font-bold transition-all duration-300 active:scale-[0.98] ${
+                                     (waitingRoomPatients.length >= (sector.waitingRoomCapacity || 5))
+                                         ? 'bg-amber-900/40 border border-amber-500/30 text-amber-500 cursor-not-allowed'
+                                         : cooldown > 0 || sector.queueCount === 0
+                                             ? 'bg-slate-800 border-2 border-slate-700 text-slate-500 cursor-not-allowed'
+                                             : 'bg-emerald-600/20 border-2 border-emerald-500/50 text-emerald-400 hover:bg-emerald-600 hover:text-white cursor-pointer'
+                                 }`}
+                             >
+                                 <Users className="w-5 h-5 flex-shrink-0" />
+                                 <span className="text-sm tracking-wide">
+                                     {waitingRoomPatients.length >= (sector.waitingRoomCapacity || 5) 
+                                         ? 'Sala Cheia' 
+                                         : callingToWaitingRoom 
+                                            ? 'Chamando...' 
+                                            : cooldown > 0 
+                                                ? `Aguarde ${Math.floor(cooldown / 60)}:${(cooldown % 60).toString().padStart(2, '0')}`
+                                                : 'Chamar da Recepção (P/ Sala)'}
+                                 </span>
+                             </button>
+
+                             <button
+                                 onClick={handleCallNext}
+                                 disabled={callingNext || waitingRoomPatients.length === 0}
+                                 className={`w-full group relative overflow-hidden flex items-center justify-center gap-2 p-4 rounded-xl font-bold transition-all duration-300 active:scale-[0.98] ${
+                                      waitingRoomPatients.length === 0
+                                         ? 'bg-slate-800 border-2 border-slate-700 text-slate-500 cursor-not-allowed'
+                                         : 'bg-indigo-600 border-2 border-indigo-500 text-white hover:bg-indigo-500 cursor-pointer shadow-[0_5px_20px_-5px_rgba(79,70,229,0.4)]'
+                                 }`}
+                             >
+                                 <PhoneCall className="w-5 h-5 flex-shrink-0" />
+                                 <span className="text-sm tracking-wide">
+                                     {callingNext ? 'Encaminhando...' : 'Atender Paciente da Sala'}
+                                 </span>
+                             </button>
+                         </div>
+                    </div>
+                )}
+
+                {/* Legacy Chamar Próximo (If no waiting room) */}
+                {!sector.hasWaitingRoom && (
                 <button
                     onClick={handleCallNext}
                     disabled={callingNext || sector.queueCount === 0 || cooldown > 0 || sector.status !== 'AVAILABLE'}
@@ -357,6 +484,7 @@ const Controller: React.FC = () => {
                         </span>
                     )}
                 </button>
+                )}
 
                 {/* New: Ordem de Atendimento (In-Service List) */}
                 {sector && (
