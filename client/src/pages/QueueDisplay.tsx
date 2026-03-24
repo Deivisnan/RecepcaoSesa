@@ -127,6 +127,9 @@ const QueueDisplay: React.FC = () => {
         setHeroGlow(true);
 
         try {
+          // Garante a permanência de EXATOS 7 segundos na tela a partir da montagem do card
+          const visualTimerPromise = new Promise(resolve => setTimeout(resolve, 7000));
+
           audioManager.playLoudSmoothChime();
           // Wait 1.5s for the chime to settle before speaking
           await new Promise(resolve => setTimeout(resolve, 1500));
@@ -135,25 +138,20 @@ const QueueDisplay: React.FC = () => {
           name = name.replace(/^paciente\s+/i, '');
 
           // Fala o nome apenas 1 vez (Single Call)
-          await audioManager.speak(name, 1, 1000);
+          const audioPromise = audioManager.speak(name, 1, 1000);
+          
+          audioPromise.then(() => setHeroGlow(false)).catch(() => setHeroGlow(false));
 
-          // Ao término da fala (onend/onerror no TTS manager), o visual encerra
-          setHeroGlow(false);
+          // A processNext só avança pro próximo chamado se e somente se as duas condições encerrarem:
+          // 1. Áudio ter terminado 2. O tempo de 7 segundos total tiverem passado
+          await Promise.all([audioPromise, visualTimerPromise]);
         } catch (e) {
           console.error("Erro no processamento da chamada", e);
           setHeroGlow(false);
         }
 
-        // Remove o ticket da tela, voltando ao estado visual IDLE
-        setDisplayHero(null);
-
-        // Smart Delay: Gerenciamento Dinâmico de Pausa
-        if (callQueueRef.current.length > 0) {
-          // Existe alguém aguardando (ex: Batch call): pausa rigorosa de 5s COM A TELA VAZIA
-          await new Promise(resolve => setTimeout(resolve, 5000));
-        } else {
-          // Fila vazia: encerra ciclo imediatamente e fica em estado IDLE
-        }
+        // Importante: NÃO limpamos o displayHero como nulo para manter a senha visível fixa.
+        // E nenhum setTimeout vazio entre as chamadas (fila engata perfeitamente nos ciclos de 7s).
 
         // Libera para a próxima execução
         setIsProcessing(false);
@@ -195,13 +193,23 @@ const QueueDisplay: React.FC = () => {
   // ── Derived state ──────────────────────────────────────────────────────────
   const inServiceTickets = data.tickets.filter(t => t.status === 'IN_SERVICE');
 
-  // Hero is either the one being staggered OR the most recent one if queue is empty
-  const heroTicket = displayHero || (inServiceTickets.length > 0 ? inServiceTickets[inServiceTickets.length - 1] : null);
+  // Ignora visualmente os tickets que ainda estão na fila invisível assíncrona
+  const callQueueIds = new Set(callQueue.map(t => t.id));
+  const processedTickets = inServiceTickets.filter(t => !callQueueIds.has(t.id));
+
+  // Valida proativamente se o hero atual não foi finalizado (baixa pelo atendente)
+  let activeHero = null;
+  if (displayHero) {
+    activeHero = processedTickets.find(t => t.id === displayHero.id) || null;
+  }
+  
+  // Hero is either the currently active/persisted visual call OR the most recent DB one
+  const heroTicket = activeHero || (processedTickets.length > 0 ? processedTickets[processedTickets.length - 1] : null);
 
   // List is everything BEFORE the hero, limited to the last 12 previous calls, recent first
-  const listTickets: Ticket[] = inServiceTickets
+  const listTickets: Ticket[] = processedTickets
     .filter(t => t.id !== heroTicket?.id)
-    .slice(Math.max(0, inServiceTickets.length - 14), -1)
+    .slice(-12)
     .reverse();
 
   return (
