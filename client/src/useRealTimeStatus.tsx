@@ -9,8 +9,17 @@ export function useRealTimeStatus() {
     useEffect(() => {
         // 1. Busca estado inicial via REST
         fetch(`${API_URL}/api/sectors`)
-            .then((res) => res.json())
-            .then((data) => setSectors(data))
+            .then((res) => {
+                if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+                return res.json();
+            })
+            .then((data) => {
+                if (Array.isArray(data)) {
+                    setSectors(data);
+                } else {
+                    console.error('Expected array of sectors from API, got:', data);
+                }
+            })
             .catch((err) => console.error('Failed to load initial sectors:', err));
 
         // 2. Assina mudanças em tempo real via Supabase Realtime

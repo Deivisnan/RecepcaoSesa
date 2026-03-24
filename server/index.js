@@ -4,23 +4,20 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
-const http_1 = require("http");
-const socket_io_1 = require("socket.io");
 const cors_1 = __importDefault(require("cors"));
 const client_1 = require("@prisma/client");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const exportRoutes_1 = __importDefault(require("./exportRoutes"));
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-change-in-production';
 const app = (0, express_1.default)();
-const httpServer = (0, http_1.createServer)(app);
-const io = new socket_io_1.Server(httpServer, {
-    cors: {
-        origin: '*',
-        methods: ['GET', 'POST'],
-    },
-});
 const prisma = new client_1.PrismaClient();
 const PORT = process.env.PORT || 3001;
+// Helper to reset date to start of day
+function todayReset(d) {
+    d.setHours(0, 0, 0, 0);
+    return d;
+}
 app.use((0, cors_1.default)());
 app.use(express_1.default.json());
 // Daily Queue Reset Middleware - Serverless Compatible
@@ -71,7 +68,6 @@ app.use(async (req, res, next) => {
                     });
                 }
                 console.log('[Daily Reset] Filas zeradas e recalibradas perfeitamente para o dia de hoje.');
-                io.emit('queue_reset');
             }
         }
         catch (error) {
@@ -135,7 +131,10 @@ app.get('/api/queue/display', async (req, res) => {
             },
             orderBy: { timestamp: 'asc' },
             take: 20,
-            include: { sector: { select: { name: true } } }
+            include: {
+                sector: { select: { name: true } },
+                citizen: { select: { name: true } }
+            }
         });
         // Calculate average service time heuristic:
         // If we have finished visits, estimate based on total elapsed time vs finished count
@@ -157,6 +156,7 @@ app.get('/api/queue/display', async (req, res) => {
             id: v.id,
             code: v.code,
             sectorName: v.sector?.name ?? 'Geral',
+            citizenName: v.citizen?.name ?? 'Cidadão',
             status: v.ticketStatus,
             timestamp: v.timestamp
         }));
@@ -342,7 +342,7 @@ app.get('/api/visits', authenticateToken, async (req, res) => {
             }
             else {
                 // For day, week, month, use 'date' or default to today
-                const targetDate = date ? new Date(date + 'T00:00:00') : new Date();
+                const targetDate = date ? new Date(date) : new Date();
                 startDate = new Date(targetDate);
                 endDate = new Date(targetDate);
                 if (filterType === 'day') {
@@ -501,6 +501,11 @@ app.post('/api/sectors/:id/call-next', authenticateToken, async (req, res) => {
             data: { ticketStatus: 'IN_SERVICE' },
             include: { citizen: true, sector: true }
         });
+        // Decrement sector queue count since the person is no longer waiting
+        await prisma.sector.update({
+            where: { id: sectorId },
+            data: { queueCount: { decrement: 1 } }
+        });
         res.json(updatedVisit);
     }
     catch (error) {
@@ -526,11 +531,6 @@ app.patch('/api/visits/:code/checkout', authenticateToken, async (req, res) => {
             where: { id: visit.id },
             data: { ticketStatus: 'FINISHED' }
         });
-        // Decrement sector queue
-        await prisma.sector.update({
-            where: { id: visit.sectorId },
-            data: { queueCount: { decrement: 1 } }
-        });
         res.json(updated);
     }
     catch (error) {
@@ -538,7 +538,70 @@ app.patch('/api/visits/:code/checkout', authenticateToken, async (req, res) => {
         res.status(500).json({ error: 'Failed to checkout' });
     }
 });
+// --- BATCH CALLING ENDPOINTS ---
+app.get('/api/sectors/:id/waiting', authenticateToken, async (req, res) => {
+    try {
+        const sectorId = req.params.id;
+        const startOfToday = new Date();
+        todayReset(startOfToday); // helper to set to start of day
+        const waitingVisits = await prisma.visit.findMany({
+            where: {
+                sectorId,
+                ticketStatus: 'WAITING',
+                timestamp: { gte: startOfToday }
+            },
+            orderBy: { timestamp: 'asc' },
+            include: { citizen: { select: { name: true, cpf: true } } }
+        });
+        res.json(waitingVisits);
+    }
+    catch (error) {
+        console.error('Error fetching waiting visits:', error);
+        res.status(500).json({ error: 'Failed to fetch waiting list' });
+    }
+});
+app.get('/api/sectors/:id/in-service', authenticateToken, async (req, res) => {
+    try {
+        const sectorId = req.params.id;
+        const startOfToday = new Date();
+        todayReset(startOfToday);
+        const inServiceVisits = await prisma.visit.findMany({
+            where: {
+                sectorId,
+                ticketStatus: 'IN_SERVICE',
+                timestamp: { gte: startOfToday }
+            },
+            orderBy: { timestamp: 'asc' },
+            include: { citizen: { select: { name: true, cpf: true } } }
+        });
+        res.json(inServiceVisits);
+    }
+    catch (error) {
+        console.error('Error fetching in-service visits:', error);
+        res.status(500).json({ error: 'Failed to fetch in-service list' });
+    }
+});
 // --- SECTOR STATUS & QUEUE REST ENDPOINTS ---
+// --- GENERAL SECTOR UPDATE (Admin only) ---
+app.patch('/api/sectors/:id', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const id = req.params.id;
+        const { name, callCooldown, soundUrl } = req.body;
+        const updatedSector = await prisma.sector.update({
+            where: { id },
+            data: {
+                name,
+                callCooldown: callCooldown !== undefined ? parseInt(callCooldown) : undefined,
+                soundUrl
+            },
+        });
+        res.json(updatedSector);
+    }
+    catch (error) {
+        console.error('Error updating sector:', error);
+        res.status(500).json({ error: 'Failed to update sector' });
+    }
+});
 app.patch('/api/sectors/:id/status', authenticateToken, async (req, res) => {
     try {
         const id = req.params.id;
@@ -579,62 +642,7 @@ app.patch('/api/sectors/:id/queue', authenticateToken, async (req, res) => {
         res.status(500).json({ error: 'Failed to update queue' });
     }
 });
-// Socket.io for Real-Time Status Updates (legacy - kept for reference)
-io.on('connection', (socket) => {
-    console.log('Client connected:', socket.id);
-    // When a controller updates the status
-    socket.on('update_status', async (data) => {
-        try {
-            const { sectorId, status } = data;
-            const updatedSector = await prisma.sector.update({
-                where: { id: sectorId },
-                data: { status },
-            });
-            // Broadcast the change to ALL connected clients (especially the Reception Dashboard)
-            io.emit('status_changed', updatedSector);
-            console.log(`[Status Updated] ${updatedSector.name} -> ${updatedSector.status}`);
-        }
-        catch (error) {
-            console.error('Error updating status:', error);
-            socket.emit('error', { message: 'Failed to update status' });
-        }
-    });
-    // When reception updates the queue count
-    socket.on('update_queue', async (data) => {
-        try {
-            const { sectorId, action } = data;
-            const currentSector = await prisma.sector.findUnique({
-                where: { id: sectorId },
-            });
-            if (!currentSector)
-                return;
-            let newCount = currentSector.queueCount;
-            if (action === 'add') {
-                newCount++;
-            }
-            else if (action === 'remove' && newCount > 0) {
-                newCount--;
-            }
-            else {
-                return; // Do nothing if it's below 0 or unsupported action
-            }
-            const updatedSector = await prisma.sector.update({
-                where: { id: sectorId },
-                data: { queueCount: newCount },
-            });
-            // Re-use status_changed to push the entire row update
-            io.emit('status_changed', updatedSector);
-            console.log(`[Queue Updated] ${updatedSector.name} -> Queue: ${updatedSector.queueCount}`);
-        }
-        catch (error) {
-            console.error('Error updating queue:', error);
-            socket.emit('error', { message: 'Failed to update queue' });
-        }
-    });
-    socket.on('disconnect', () => {
-        console.log('Client disconnected:', socket.id);
-    });
-});
-httpServer.listen(PORT, () => {
+app.use('/api/export', authenticateToken, exportRoutes_1.default);
+app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
 });
