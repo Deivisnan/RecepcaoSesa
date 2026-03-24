@@ -144,19 +144,19 @@ const QueueDisplay: React.FC = () => {
           setHeroGlow(false);
         }
 
+        // Remove o ticket da tela, voltando ao estado visual IDLE
+        setDisplayHero(null);
+
         // Smart Delay: Gerenciamento Dinâmico de Pausa
         if (callQueueRef.current.length > 0) {
-          // Existe alguém aguardando (ex: Batch call): pausa rigorosa de 5s
+          // Existe alguém aguardando (ex: Batch call): pausa rigorosa de 5s COM A TELA VAZIA
           await new Promise(resolve => setTimeout(resolve, 5000));
         } else {
           // Fila vazia: encerra ciclo imediatamente e fica em estado IDLE
         }
 
-        setDisplayHero(null);
-        // Wait brief delay to allow React to clear the screen
-        setTimeout(() => {
-          setIsProcessing(false);
-        }, 100);
+        // Libera para a próxima execução
+        setIsProcessing(false);
       };
 
       processNext();
