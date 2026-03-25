@@ -7,6 +7,19 @@ import { format } from 'date-fns';
 const router = Router();
 const prisma = new PrismaClient();
 
+function translateStatus(status: string | null | undefined): string {
+    if (!status) return 'Indisponível';
+    const s = status.toUpperCase();
+    switch (s) {
+        case 'WAITING': return 'Aguardando';
+        case 'IN_WAITING_ROOM': return 'Na Sala de Espera';
+        case 'IN_SERVICE': return 'Em Atendimento';
+        case 'FINISHED': return 'Finalizado';
+        case 'EXPIRED': return 'Expirado';
+        default: return status;
+    }
+}
+
 // Shared filtering logic
 async function getFilteredVisits(req: Request) {
     const { date, filterType, code, cpf, sectorId, ticketStatus } = req.query;
@@ -142,7 +155,7 @@ router.get('/xlsx', async (req, res) => {
             const row = rawSheet.addRow({
                 timestamp: v.timestamp,
                 code: v.code,
-                status: v.ticketStatus,
+                status: translateStatus(v.ticketStatus),
                 citizenName: v.citizen?.name,
                 citizenCpf: v.citizenId,
                 sectorName: v.sector?.name,
@@ -198,7 +211,7 @@ router.get('/pdf', async (req, res) => {
                 <tr>
                     <td>${printDate}</td>
                     <td>${v.code || '-'}</td>
-                    <td>${v.ticketStatus || '-'}</td>
+                    <td>${translateStatus(v.ticketStatus)}</td>
                     <td>${v.citizen?.name || 'Anônimo'}</td>
                     <td>${v.sector?.name || 'Geral'}</td>
                 </tr>
