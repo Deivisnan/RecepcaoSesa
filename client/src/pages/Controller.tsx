@@ -632,33 +632,66 @@ const Controller: React.FC = () => {
                 </div>
 
                 {/* Em Atendimento — citizen info card (shown for all sectors) */}
-                {currentCitizen && (
-                    <div className="w-full bg-gradient-to-br from-indigo-900/40 to-slate-800/80 border border-indigo-500/30 rounded-2xl p-6 shadow-[0_0_40px_rgba(79,70,229,0.1)] animate-in slide-in-from-bottom-4 fade-in duration-500 relative overflow-hidden mt-4">
-                        <div className="flex justify-between items-start mb-2">
-                            <p className="text-indigo-400 text-sm font-bold tracking-widest uppercase">Em Atendimento</p>
-                            {citizenWaitSeconds > 0 && (
-                                <div className="bg-slate-900/80 border border-slate-700 px-3 py-1 rounded-lg flex items-center gap-2 shadow-inner">
-                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                                    <span className="text-emerald-400 font-mono text-sm font-bold">
+                {currentCitizen && (() => {
+                    const maxWait = (sector as any).callCooldown ?? 120;
+                    const timeElapsed = citizenWaitSeconds;
+                    const isExpired = timeElapsed >= maxWait;
+                    const remaining = Math.max(0, maxWait - timeElapsed);
+
+                    return (
+                        <div className={`w-full border rounded-2xl p-6 shadow-[0_0_40px_rgba(0,0,0,0.15)] animate-in slide-in-from-bottom-4 fade-in duration-500 relative overflow-hidden mt-4 transition-all duration-1000 ${
+                            isExpired
+                                ? 'bg-gradient-to-br from-orange-900/30 to-slate-800/80 border-orange-500/30'
+                                : 'bg-gradient-to-br from-indigo-900/40 to-slate-800/80 border-indigo-500/30'
+                        }`}>
+                            <div className="flex justify-between items-start mb-2">
+                                {/* Status Badge */}
+                                <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest border ${
+                                    isExpired
+                                        ? 'bg-orange-500/10 border-orange-500/30 text-orange-400'
+                                        : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                                }`}>
+                                    <span className={`w-1.5 h-1.5 rounded-full ${isExpired ? 'bg-orange-400' : 'bg-emerald-400 animate-pulse'}`} />
+                                    {isExpired ? 'Não Compareceu' : 'Aguardando'}
+                                </div>
+
+                                {/* Timer */}
+                                {citizenWaitSeconds > 0 && (
+                                    <div className={`border px-3 py-1 rounded-lg flex items-center gap-2 shadow-inner text-sm font-bold font-mono ${
+                                        isExpired
+                                            ? 'bg-orange-900/30 border-orange-700/50 text-orange-400'
+                                            : 'bg-slate-900/80 border-slate-700 text-emerald-400'
+                                    }`}>
                                         {Math.floor(citizenWaitSeconds / 60).toString().padStart(2, '0')}:{(citizenWaitSeconds % 60).toString().padStart(2, '0')}
-                                    </span>
+                                    </div>
+                                )}
+                            </div>
+
+                            <p className="text-2xl font-bold text-white mb-1 truncate pr-2 mt-2">{currentCitizen.name}</p>
+                            <p className="text-slate-400 text-sm mb-4">
+                                {isExpired
+                                    ? 'O cidadão não compareceu dentro do tempo configurado. Você pode encerrar o atendimento.'
+                                    : 'O cidadão foi chamado. Aguarde o comparecimento ou use "Dar Baixa" com o número do ticket.'
+                                }
+                            </p>
+
+                            {isExpired ? (
+                                <button
+                                    onClick={() => setShowNoShowModal(true)}
+                                    className="w-full mt-2 py-3 px-4 bg-orange-500/10 hover:bg-orange-500/20 border-2 border-orange-500/40 hover:border-orange-500/60 rounded-xl text-orange-400 font-bold transition-all flex items-center justify-center gap-2"
+                                >
+                                    <AlertTriangle className="w-4 h-4" />
+                                    <span>Encerrar por Não Comparecimento</span>
+                                </button>
+                            ) : (
+                                <div className="w-full mt-2 py-2.5 px-4 bg-slate-900/40 border border-slate-700/50 rounded-xl text-slate-500 text-sm flex items-center justify-center gap-2">
+                                    <AlertTriangle className="w-3.5 h-3.5 opacity-50" />
+                                    <span>Encerramento disponível em <strong className="text-slate-400 font-mono">{Math.floor(remaining / 60).toString().padStart(2, '0')}:{(remaining % 60).toString().padStart(2, '0')}</strong></span>
                                 </div>
                             )}
                         </div>
-                        <p className="text-2xl font-bold text-white mb-1 truncate pr-20">{currentCitizen.name}</p>
-                        <p className="text-slate-400 text-sm mb-4">O cidadão acima foi chamado. Aguarde o comparecimento e digite o código do ticket para dar baixa.</p>
-                        
-                        {cooldown === 0 && (
-                            <button
-                                onClick={() => setShowNoShowModal(true)}
-                                className="w-full mt-2 py-3 px-4 bg-rose-500/10 hover:bg-rose-500/20 border-2 border-rose-500/30 hover:border-rose-500/50 rounded-xl text-rose-400 font-bold transition-all flex items-center justify-center gap-2"
-                            >
-                                <AlertTriangle className="w-4 h-4" />
-                                <span>Encerrar por Tempo Esgotado</span>
-                            </button>
-                        )}
-                    </div>
-                )}
+                    );
+                })()}
             </main>
 
             {sector && (

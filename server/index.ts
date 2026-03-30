@@ -143,7 +143,7 @@ app.get('/api/queue/display', async (req, res) => {
             orderBy: { timestamp: 'asc' },
             take: 20,
             include: { 
-                sector: { select: { name: true } },
+                sector: { select: { name: true, callCooldown: true } },
                 citizen: { select: { name: true } }
             }
         });
@@ -170,6 +170,7 @@ app.get('/api/queue/display', async (req, res) => {
             id: v.id,
             code: v.code,
             sectorName: v.sector?.name ?? 'Geral',
+            sectorCooldown: v.sector?.callCooldown ?? 120,
             citizenName: v.citizen?.name ?? 'Cidadão',
             status: v.ticketStatus,
             timestamp: v.timestamp,

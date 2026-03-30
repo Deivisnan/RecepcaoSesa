@@ -10,7 +10,8 @@ interface Ticket {
   id: string;
   code: string;
   sectorName: string;
-  citizenName: string; // Adicionado para chamado por voz
+  sectorCooldown: number; // seconds — configured by TI per sector
+  citizenName: string;
   status: 'IN_SERVICE' | 'WAITING' | 'IN_WAITING_ROOM';
   timestamp: string;
   calledAt?: string | null;
@@ -37,12 +38,15 @@ const COLORS = {
 const getTicketStatusInfo = (ticket: Ticket, indexInList: number, nowMs: number) => {
   if (ticket.status === 'IN_SERVICE' || ticket.status === 'IN_WAITING_ROOM') {
     if (ticket.calledAt) {
+      const cooldownSeconds = ticket.sectorCooldown ?? 120;
       const waitTime = (nowMs - new Date(ticket.calledAt).getTime()) / 1000;
-      if (waitTime >= 300) { // 5 minutes
-        return { label: 'Tempo Esgotado', color: '#EAB308', bg: 'rgba(234, 179, 8, 0.1)', isExpired: true };
+      if (waitTime >= cooldownSeconds) {
+        // Citizen has not shown up within the configured waiting period
+        return { label: 'Não compareceu', color: '#F97316', bg: 'rgba(249, 115, 22, 0.1)', isExpired: true };
       }
     }
-    return { label: 'Em atendimento', color: COLORS.inService, bg: 'rgba(34,197,94,0.1)', isExpired: false };
+    // Still within the waiting window — green status
+    return { label: 'Aguardando', color: COLORS.inService, bg: 'rgba(34,197,94,0.1)', isExpired: false };
   }
   if (indexInList < 2) {
     return { label: 'Próximo', color: COLORS.next, bg: 'rgba(245,158,11,0.1)', isExpired: false };
@@ -243,12 +247,12 @@ const QueueDisplay: React.FC = () => {
       <main style={styles.main}>
         <section style={styles.heroSection}>
           {heroTicket ? (
-            <div key={heroKey} style={{ ...styles.heroCard, ...(heroGlow ? styles.heroCardGlow : {}), ...(isHeroExpired ? { borderColor: 'rgba(234, 179, 8, 0.4)', background: 'rgba(234, 179, 8, 0.05)' } : {}) }}>
-              <p style={{...styles.heroSub, color: isHeroExpired ? '#EAB308' : '#64748B'}}>{isHeroExpired ? 'TEMPO DE ESPERA ESGOTADO' : 'SENHA CHAMADA'}</p>
-              <h1 style={{...styles.heroCode, color: isHeroExpired ? '#FDE047' : COLORS.white}}>{heroTicket.code}</h1>
+            <div key={heroKey} style={{ ...styles.heroCard, ...(heroGlow ? styles.heroCardGlow : {}), ...(isHeroExpired ? { borderColor: 'rgba(249, 115, 22, 0.4)', background: 'rgba(249, 115, 22, 0.04)' } : {}) }}>
+              <p style={{...styles.heroSub, color: isHeroExpired ? '#F97316' : '#64748B'}}>{isHeroExpired ? 'NÃO COMPARECEU' : 'AGUARDANDO'}</p>
+              <h1 style={{...styles.heroCode, color: isHeroExpired ? '#FB923C' : COLORS.white}}>{heroTicket.code}</h1>
               <div style={styles.heroStatus}>
-                <div style={{...styles.heroDot, background: isHeroExpired ? '#EAB308' : COLORS.inService, boxShadow: isHeroExpired ? `0 0 15px #EAB308` : `0 0 15px ${COLORS.inService}`}} />
-                <span style={{color: isHeroExpired ? '#FDE047' : '#CBD5E1'}}>{heroTicket.sectorName}</span>
+                <div style={{...styles.heroDot, background: isHeroExpired ? '#F97316' : COLORS.inService, boxShadow: isHeroExpired ? `0 0 15px #F97316` : `0 0 15px ${COLORS.inService}`}} />
+                <span style={{color: isHeroExpired ? '#FB923C' : '#CBD5E1'}}>{heroTicket.sectorName}</span>
               </div>
               
               {/* Batch feedback */}
