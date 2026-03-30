@@ -134,13 +134,13 @@ app.get('/api/queue/display', async (req, res) => {
         const startOfToday = new Date();
         startOfToday.setHours(0, 0, 0, 0);
 
-        // Fetch today's active tickets (IN_SERVICE, WAITING, IN_WAITING_ROOM, and NO_SHOW), ordered by timestamp asc
+        // Fetch today's active tickets (IN_SERVICE, IN_WAITING_ROOM, and NO_SHOW)
         const activeVisits = await prisma.visit.findMany({
             where: {
-                ticketStatus: { in: ['IN_SERVICE', 'WAITING', 'IN_WAITING_ROOM', 'NO_SHOW'] },
+                ticketStatus: { in: ['IN_SERVICE', 'IN_WAITING_ROOM', 'NO_SHOW'] },
                 timestamp: { gte: startOfToday }
             },
-            orderBy: { timestamp: 'asc' },
+            orderBy: { timestamp: 'desc' },
             take: 20,
             include: { 
                 sector: { select: { name: true, callCooldown: true } },

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+﻿import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { API_URL } from '../config/apiConfig';
 import { supabase } from '../config/supabaseConfig';
@@ -35,24 +35,18 @@ const COLORS = {
 // Audio handled by global audioManager
 
 // ── Helper to determine ticket visual status ────────────────────────────────
-const getTicketStatusInfo = (ticket: Ticket, indexInList: number, nowMs: number) => {
-  // Already marked as no-show by the attendant — always orange
+const getTicketStatusInfo = (ticket: Ticket, indexInList: number, _nowMs: number) => {
+  // Orange ONLY when explicitly marked as NO_SHOW by attendant — never by timer
   if (ticket.status === 'NO_SHOW') {
     return { label: 'Não compareceu', color: '#F97316', bg: 'rgba(249, 115, 22, 0.1)', isExpired: true };
   }
 
+  // Green for any actively called ticket (in service or in waiting room)
   if (ticket.status === 'IN_SERVICE' || ticket.status === 'IN_WAITING_ROOM') {
-    if (ticket.calledAt) {
-      const cooldownSeconds = ticket.sectorCooldown ?? 120;
-      const waitTime = (nowMs - new Date(ticket.calledAt).getTime()) / 1000;
-      if (waitTime >= cooldownSeconds) {
-        // Citizen has not shown up within the configured waiting period
-        return { label: 'Não compareceu', color: '#F97316', bg: 'rgba(249, 115, 22, 0.1)', isExpired: true };
-      }
-    }
-    // Still within the waiting window — green status
     return { label: 'Aguardando', color: COLORS.inService, bg: 'rgba(34,197,94,0.1)', isExpired: false };
   }
+
+  // Waiting queue — highlight the first two as “Próximo”
   if (indexInList < 2) {
     return { label: 'Próximo', color: COLORS.next, bg: 'rgba(245,158,11,0.1)', isExpired: false };
   }
@@ -120,10 +114,15 @@ const QueueDisplay: React.FC = () => {
       }
       isFirstFetchRef.current = false;
 
-      // Cleanup processed set (remove IDs that are no longer in service)
-      const currentServiceIds = new Set(inService.map(t => t.id));
+      // Bug fix: track IN_SERVICE + IN_WAITING_ROOM + NO_SHOW for cleanup,
+      // so NO_SHOW tickets aren't re-announced if realtime fires again
+      const currentActiveIds = new Set(
+        filteredTickets
+          .filter(t => t.status === 'IN_SERVICE' || t.status === 'IN_WAITING_ROOM' || t.status === 'NO_SHOW')
+          .map(t => t.id)
+      );
       processedIdsRef.current.forEach(id => {
-        if (!currentServiceIds.has(id)) processedIdsRef.current.delete(id);
+        if (!currentActiveIds.has(id)) processedIdsRef.current.delete(id);
       });
 
       setData({ ...json, tickets: filteredTickets });
@@ -183,52 +182,36 @@ const QueueDisplay: React.FC = () => {
     }
   }, [callQueue, isProcessing]);
 
-  // ── Supabase Realtime ─────────────────────────────────────────────────────
-  useEffect(() => {
-    fetchData();
-    pollRef.current = setInterval(fetchData, 30000); // Polling as fallback (less frequent)
+  // Derived state
+  // "calledTickets" = every ticket actively called (IN_SERVICE, IN_WAITING_ROOM, or NO_SHOW).
+  // NO_SHOW must persist on the display panel (orange) - never disappears.
+  const calledTickets = data.tickets.filter(
+    t => t.status === 'IN_SERVICE' || t.status === 'IN_WAITING_ROOM' || t.status === 'NO_SHOW'
+  );
 
-    // Subscribe to changes in the 'visits' table (mapped as 'Visit' in Prisma, but usually lowercase in DB)
-    const channel = supabase
-      .channel('queue-display')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'Visit' },
-        () => {
-          fetchData();
-        }
-      )
-      .subscribe();
-
-    channelRef.current = channel;
-
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-      if (channelRef.current) supabase.removeChannel(channelRef.current);
-    };
-  }, [fetchData]);
-
-  // ── Derived state ──────────────────────────────────────────────────────────
-  const inServiceTickets = data.tickets.filter(t => t.status === 'IN_SERVICE' || t.status === 'IN_WAITING_ROOM');
-
-  // Ignora visualmente os tickets que ainda estão na fila invisível assíncrona
+  // Exclude tickets still sitting in the async announcement queue (avoids flickering)
   const callQueueIds = new Set(callQueue.map(t => t.id));
-  const processedTickets = inServiceTickets.filter(t => !callQueueIds.has(t.id));
+  const processedTickets = calledTickets.filter(t => !callQueueIds.has(t.id));
 
-  // Valida proativamente se o hero atual não foi finalizado (baixa pelo atendente)
-  let activeHero = null;
+  // If the stored displayHero is still present in processedTickets (any status), keep it as hero
+  let activeHero: Ticket | null = null;
   if (displayHero) {
     activeHero = processedTickets.find(t => t.id === displayHero.id) || null;
   }
-  
-  // Hero is either the currently active/persisted visual call OR the most recent DB one
+
+  // Hero = persisted visual hero OR the most recently called ticket from DB
   const heroTicket = activeHero || (processedTickets.length > 0 ? processedTickets[processedTickets.length - 1] : null);
 
-  // List is everything BEFORE the hero, limited to the last 12 previous calls, recent first
+  // List = all called tickets except the hero - most recent first, max 12
+  // Ordered by calledAt descending so the panel shows newest at top.
   const listTickets: Ticket[] = processedTickets
     .filter(t => t.id !== heroTicket?.id)
-    .slice(-12)
-    .reverse();
+    .sort((a, b) => {
+      const tA = a.calledAt ? new Date(a.calledAt).getTime() : new Date(a.timestamp).getTime();
+      const tB = b.calledAt ? new Date(b.calledAt).getTime() : new Date(b.timestamp).getTime();
+      return tB - tA;
+    })
+    .slice(0, 12);
 
   const heroInfo = heroTicket ? getTicketStatusInfo(heroTicket, 0, nowMs) : null;
   const isHeroExpired = heroInfo?.isExpired;

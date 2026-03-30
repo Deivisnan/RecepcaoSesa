@@ -639,29 +639,17 @@ const Controller: React.FC = () => {
                     const remaining = Math.max(0, maxWait - timeElapsed);
 
                     return (
-                        <div className={`w-full border rounded-2xl p-6 shadow-[0_0_40px_rgba(0,0,0,0.15)] animate-in slide-in-from-bottom-4 fade-in duration-500 relative overflow-hidden mt-4 transition-all duration-1000 ${
-                            isExpired
-                                ? 'bg-gradient-to-br from-orange-900/30 to-slate-800/80 border-orange-500/30'
-                                : 'bg-gradient-to-br from-indigo-900/40 to-slate-800/80 border-indigo-500/30'
-                        }`}>
+                        <div className="w-full border rounded-2xl p-6 shadow-[0_0_40px_rgba(0,0,0,0.15)] animate-in slide-in-from-bottom-4 fade-in duration-500 relative overflow-hidden mt-4 transition-all duration-1000 bg-gradient-to-br from-indigo-900/40 to-slate-800/80 border-indigo-500/30">
                             <div className="flex justify-between items-start mb-2">
                                 {/* Status Badge */}
-                                <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest border ${
-                                    isExpired
-                                        ? 'bg-orange-500/10 border-orange-500/30 text-orange-400'
-                                        : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                                }`}>
-                                    <span className={`w-1.5 h-1.5 rounded-full ${isExpired ? 'bg-orange-400' : 'bg-emerald-400 animate-pulse'}`} />
-                                    {isExpired ? 'Não Compareceu' : 'Aguardando'}
+                                <div className="flex items-center gap-2 px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest border bg-emerald-500/10 border-emerald-500/30 text-emerald-400">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                    Aguardando
                                 </div>
 
                                 {/* Timer */}
                                 {citizenWaitSeconds > 0 && (
-                                    <div className={`border px-3 py-1 rounded-lg flex items-center gap-2 shadow-inner text-sm font-bold font-mono ${
-                                        isExpired
-                                            ? 'bg-orange-900/30 border-orange-700/50 text-orange-400'
-                                            : 'bg-slate-900/80 border-slate-700 text-emerald-400'
-                                    }`}>
+                                    <div className="border px-3 py-1 rounded-lg flex items-center gap-2 shadow-inner text-sm font-bold font-mono bg-slate-900/80 border-slate-700 text-emerald-400">
                                         {Math.floor(citizenWaitSeconds / 60).toString().padStart(2, '0')}:{(citizenWaitSeconds % 60).toString().padStart(2, '0')}
                                     </div>
                                 )}
@@ -670,7 +658,7 @@ const Controller: React.FC = () => {
                             <p className="text-2xl font-bold text-white mb-1 truncate pr-2 mt-2">{currentCitizen.name}</p>
                             <p className="text-slate-400 text-sm mb-4">
                                 {isExpired
-                                    ? 'O cidadão não compareceu dentro do tempo configurado. Você pode encerrar o atendimento.'
+                                    ? 'O cidadão já esgotou o tempo de tolerância. Você pode encerrar o atendimento.'
                                     : 'O cidadão foi chamado. Aguarde o comparecimento ou use "Dar Baixa" com o número do ticket.'
                                 }
                             </p>

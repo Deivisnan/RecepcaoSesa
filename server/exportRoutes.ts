@@ -16,6 +16,7 @@ function translateStatus(status: string | null | undefined): string {
         case 'IN_SERVICE': return 'Em Atendimento';
         case 'FINISHED': return 'Finalizado';
         case 'EXPIRED': return 'Expirado';
+        case 'NO_SHOW': return 'Não Compareceu';
         default: return status;
     }
 }
@@ -118,6 +119,7 @@ router.get('/xlsx', async (req, res) => {
 
         const totalVisits = visits.length;
         const finished = visits.filter((v: any) => v.ticketStatus === 'FINISHED').length;
+        const noShow = visits.filter((v: any) => v.ticketStatus === 'NO_SHOW').length;
         const waiting = visits.filter((v: any) => v.ticketStatus === 'WAITING').length;
         const inService = visits.filter((v: any) => v.ticketStatus === 'IN_SERVICE').length;
 
@@ -125,6 +127,7 @@ router.get('/xlsx', async (req, res) => {
             { metric: 'Setor Analisado', value: sectorName },
             { metric: 'Total de Atendimentos', value: totalVisits },
             { metric: 'Finalizados', value: finished },
+            { metric: 'Não Compareceu', value: noShow },
             { metric: 'Aguardando', value: waiting },
             { metric: 'Em Atendimento', value: inService },
             { metric: 'Data de Geração', value: format(new Date(), 'dd/MM/yyyy HH:mm') }
@@ -199,6 +202,7 @@ router.get('/pdf', async (req, res) => {
         const sectorName = req.query.sectorId ? (visits[0] as any)?.sector?.name || 'Setor' : 'Visão Geral';
 
         const finishedCount = visits.filter((v: any) => v.ticketStatus === 'FINISHED').length;
+        const noShowCount = visits.filter((v: any) => v.ticketStatus === 'NO_SHOW').length;
         const waitingCount = visits.filter((v: any) => v.ticketStatus === 'WAITING').length;
 
         let tableRowsHtml = '';
@@ -247,6 +251,7 @@ router.get('/pdf', async (req, res) => {
             <div class="kpi-row">
                 <div class="kpi-card">Total de Atendimentos<div class="kpi-value">${visits.length}</div></div>
                 <div class="kpi-card">Finalizados<div class="kpi-value">${finishedCount}</div></div>
+                <div class="kpi-card">Não Compareceu<div class="kpi-value">${noShowCount}</div></div>
                 <div class="kpi-card">Aguardando<div class="kpi-value">${waitingCount}</div></div>
             </div>
 
