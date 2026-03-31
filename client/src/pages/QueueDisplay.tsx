@@ -4,6 +4,7 @@ import { API_URL } from '../config/apiConfig';
 import { supabase } from '../config/supabaseConfig';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { audioManager } from '../utils/audioManager';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAudioUnlock } from '../hooks/useAudioUnlock';
 // ── Types ────────────────────────────────────────────────────────────────────
 interface Ticket {
@@ -38,7 +39,7 @@ const COLORS = {
 const getTicketStatusInfo = (ticket: Ticket, indexInList: number, _nowMs: number) => {
   // Orange ONLY when explicitly marked as NO_SHOW by attendant — never by timer
   if (ticket.status === 'NO_SHOW') {
-    return { label: 'Não compareceu', color: '#F97316', bg: 'rgba(249, 115, 22, 0.1)', isExpired: true };
+    return { label: 'Não compareceu', color: '#F97316', bg: 'rgba(249, 115, 22, 0.15)', isExpired: true };
   }
 
   // Green for any actively called ticket (in service or in waiting room)
@@ -59,7 +60,6 @@ const QueueDisplay: React.FC = () => {
   const [data, setData] = useState<DisplayData>({ tickets: [], avgWaitMinutes: null });
   const [clock, setClock] = useState('');
   const [nowMs, setNowMs] = useState(Date.now());
-  const [heroKey, setHeroKey] = useState(0);
   const [heroGlow, setHeroGlow] = useState(false);
   const [callQueue, setCallQueue] = useState<Ticket[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -169,7 +169,6 @@ const QueueDisplay: React.FC = () => {
         setCallQueue(prev => prev.slice(1));
 
         setDisplayHero(next);
-        setHeroKey(k => k + 1);
         setHeroGlow(true);
 
         try {
@@ -263,29 +262,42 @@ const QueueDisplay: React.FC = () => {
       {/* ── HERO TICKET ────────────────────────────────────────────────────── */}
       <main style={styles.main}>
         <section style={styles.heroSection}>
-          {heroTicket ? (
-            <div key={heroKey} style={{ ...styles.heroCard, ...(heroGlow ? styles.heroCardGlow : {}), ...(isHeroExpired ? { borderColor: 'rgba(249, 115, 22, 0.4)', background: 'rgba(249, 115, 22, 0.04)' } : {}) }}>
-              <p style={{...styles.heroSub, color: isHeroExpired ? '#F97316' : '#64748B'}}>{isHeroExpired ? 'NÃO COMPARECEU' : 'AGUARDANDO'}</p>
-              <h1 style={{...styles.heroCode, color: isHeroExpired ? '#FB923C' : COLORS.white}}>{heroTicket.code}</h1>
-              <div style={styles.heroStatus}>
-                <div style={{...styles.heroDot, background: isHeroExpired ? '#F97316' : COLORS.inService, boxShadow: isHeroExpired ? `0 0 15px #F97316` : `0 0 15px ${COLORS.inService}`}} />
-                <span style={{color: isHeroExpired ? '#FB923C' : '#CBD5E1'}}>{heroTicket.sectorName}</span>
-              </div>
-              
-              {/* Batch feedback */}
-              {callQueue.length > 0 && (
-                <div style={styles.batchFeedback}>
-                  <div style={styles.batchProgress} className="batch-progress-bar" />
-                  <span>Mais {callQueue.length} {callQueue.length === 1 ? 'pessoa sendo chamada' : 'pessoas sendo chamadas'}...</span>
+          <AnimatePresence mode="popLayout">
+            {heroTicket ? (
+              <motion.div 
+                layoutId={heroTicket.id}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                transition={{ type: 'spring', bounce: 0.35, duration: 0.8 }}
+                key={heroTicket.id} 
+                style={{ ...styles.heroCard, ...(heroGlow ? styles.heroCardGlow : {}), ...(isHeroExpired ? { borderColor: 'rgba(249, 115, 22, 0.4)', background: 'rgba(249, 115, 22, 0.08)' } : {}) }}
+              >
+                <p style={{...styles.heroSub, color: isHeroExpired ? '#F97316' : '#64748B'}}>{isHeroExpired ? 'NÃO COMPARECEU' : 'AGUARDANDO'}</p>
+                <h1 style={{...styles.heroCode, color: isHeroExpired ? '#FB923C' : COLORS.white}}>{heroTicket.code}</h1>
+                <div style={styles.heroStatus}>
+                  <div style={{...styles.heroDot, background: isHeroExpired ? '#F97316' : COLORS.inService, boxShadow: isHeroExpired ? `0 0 15px #F97316` : `0 0 15px ${COLORS.inService}`}} />
+                  <span style={{color: isHeroExpired ? '#FB923C' : '#CBD5E1'}}>{heroTicket.sectorName}</span>
                 </div>
-              )}
-            </div>
-          ) : (
-            <div style={styles.emptyState}>
-              <div style={styles.emptyIcon}>⏳</div>
-              <p style={styles.emptyText}>Aguardando próxima chamada</p>
-            </div>
-          )}
+                
+                {/* Batch feedback */}
+                {callQueue.length > 0 && (
+                  <div style={styles.batchFeedback}>
+                    <div style={styles.batchProgress} className="batch-progress-bar" />
+                    <span>Mais {callQueue.length} {callQueue.length === 1 ? 'pessoa sendo chamada' : 'pessoas sendo chamadas'}...</span>
+                  </div>
+                )}
+              </motion.div>
+            ) : (
+              <motion.div 
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                style={styles.emptyState}
+              >
+                <div style={styles.emptyIcon}>⏳</div>
+                <p style={styles.emptyText}>Aguardando próxima chamada</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </section>
 
         {/* ── CALL HISTORY GRID ──────────────────────────────────────────────── */}
@@ -295,31 +307,37 @@ const QueueDisplay: React.FC = () => {
           </header>
 
           <div style={styles.gridContainer}>
-            {listTickets.length > 0 ? (
-              listTickets.map((t, idx) => {
-                const info = getTicketStatusInfo(t, idx, nowMs);
-                return (
-                  <div
-                    key={t.id}
-                    style={{
-                      ...styles.gridItem,
-                      animationDelay: `${idx * 80}ms`,
-                      background: 'rgba(255,255,255,0.03)',
-                      borderColor: 'rgba(255,255,255,0.08)',
-                      flexDirection: 'column',
-                      gap: '4px'
-                    }}
-                  >
-                    <span style={{ ...styles.gridCode, color: info.color }}>{t.code}</span>
-                    <span style={{ ...styles.gridSector, color: info.color + '80' }}>
-                      {t.sectorName}
-                    </span>
-                  </div>
-                );
-              })
-            ) : (
-              <div style={styles.noQueue}>Nenhuma chamada anterior</div>
-            )}
+            <AnimatePresence mode="popLayout">
+              {listTickets.length > 0 ? (
+                listTickets.map((t, idx) => {
+                  const info = getTicketStatusInfo(t, idx, nowMs);
+                  return (
+                    <motion.div
+                      layoutId={t.id}
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      transition={{ type: 'spring', bounce: 0.35, duration: 0.8 }}
+                      key={t.id}
+                      style={{
+                        ...styles.gridItem,
+                        background: info.isExpired ? 'rgba(249, 115, 22, 0.12)' : 'rgba(255,255,255,0.03)',
+                        borderColor: info.isExpired ? 'rgba(249, 115, 22, 0.3)' : 'rgba(255,255,255,0.08)',
+                        flexDirection: 'column',
+                        gap: '4px'
+                      }}
+                    >
+                      <span style={{ ...styles.gridCode, color: info.color }}>{t.code}</span>
+                      <span style={{ ...styles.gridSector, color: info.color + '80' }}>
+                        {t.sectorName}
+                      </span>
+                    </motion.div>
+                  );
+                })
+              ) : (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={styles.noQueue}>Nenhuma chamada anterior</motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </section>
       </main>

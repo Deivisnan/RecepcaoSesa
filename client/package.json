@@ -12,6 +12,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.99.0",
     "date-fns": "^4.1.0",
+    "framer-motion": "^12.38.0",
     "jwt-decode": "^4.0.0",
     "lucide-react": "^0.576.0",
     "puppeteer": "^24.38.0",
