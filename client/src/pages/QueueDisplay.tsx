@@ -45,6 +45,9 @@ const getTicketStatusInfo = (ticket: Ticket, indexInList: number, _nowMs: number
 
   // Green for any actively called ticket (in service or in waiting room)
   if (ticket.status === 'IN_SERVICE' || ticket.status === 'IN_WAITING_ROOM') {
+    if (ticket.isPriority) {
+        return { label: 'Aguardando', color: '#A855F7', bg: 'rgba(168, 85, 247, 0.1)', isExpired: false };
+    }
     return { label: 'Aguardando', color: COLORS.inService, bg: 'rgba(34,197,94,0.1)', isExpired: false };
   }
 
@@ -311,7 +314,7 @@ const QueueDisplay: React.FC = () => {
                 <p style={{...styles.heroSub, color: isHeroExpired ? '#F97316' : (heroTicket.isPriority ? '#D8B4FE' : '#64748B')}}>{isHeroExpired ? 'NÃO COMPARECEU' : 'AGUARDANDO'}</p>
                 <h1 style={{...styles.heroCode, color: isHeroExpired ? '#FB923C' : (heroTicket.isPriority ? '#F3E8FF' : COLORS.white)}}>{heroTicket.code}</h1>
                 <div style={styles.heroStatus}>
-                  <div style={{...styles.heroDot, background: isHeroExpired ? '#F97316' : COLORS.inService, boxShadow: isHeroExpired ? `0 0 15px #F97316` : `0 0 15px ${COLORS.inService}`}} />
+                  <div style={{...styles.heroDot, background: isHeroExpired ? '#F97316' : (heroTicket.isPriority ? '#A855F7' : COLORS.inService), boxShadow: isHeroExpired ? `0 0 15px #F97316` : (heroTicket.isPriority ? `0 0 15px #A855F7` : `0 0 15px ${COLORS.inService}`)}} />
                   <span style={{color: isHeroExpired ? '#FB923C' : '#CBD5E1'}}>{heroTicket.sectorName}</span>
                 </div>
                 

@@ -351,7 +351,12 @@ const Controller: React.FC = () => {
                 }
             } else {
                 const err = await res.json();
-                toast.error(err.error || 'Código não encontrado');
+                if (err.error?.includes('não encontrado')) {
+                    const statusText = checkoutIsPriority ? 'Preferencial (P-)' : 'Normal';
+                    toast.error(`Ticket não encontrado! Você marcou a opção como ${statusText}. Verifique se a opção está marcada corretamente.`);
+                } else {
+                    toast.error(err.error || 'Código não encontrado');
+                }
             }
         } catch {
             toast.error('Erro de conexão');
@@ -452,37 +457,28 @@ const Controller: React.FC = () => {
                         </div>
 
                         <form onSubmit={handleCheckout} className="flex flex-col sm:flex-row gap-3 items-stretch">
-                            <div className="flex-1 relative group">
-                                <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-none z-10 w-24">
-                                    <div className="flex flex-col gap-1 items-center justify-center border-r border-slate-700/50 pr-2">
-                                        <Hash className="w-4 h-4 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />
-                                        <span className="text-slate-500 font-black text-xs group-focus-within:text-emerald-500/50 transition-colors uppercase">
-                                            {checkoutIsPriority ? `P-${sectorPrefix}` : sectorPrefix}
-                                        </span>
-                                    </div>
-                                </div>
+                            <div className="flex-1 relative group flex">
+                                <button
+                                    type="button"
+                                    onClick={() => setCheckoutIsPriority(!checkoutIsPriority)}
+                                    className={`absolute left-2 top-1/2 -translate-y-1/2 flex items-center h-10 px-3 z-10 rounded-xl font-black text-xs transition-all border shadow-sm ${
+                                        checkoutIsPriority 
+                                        ? 'bg-amber-500 text-white border-amber-400 hover:bg-amber-400' 
+                                        : 'bg-indigo-600 text-white border-indigo-500 hover:bg-indigo-500'
+                                    }`}
+                                    title="Clique para alternar entre Normal e Preferencial"
+                                >
+                                    {checkoutIsPriority ? <Accessibility className="w-3.5 h-3.5 mr-1" /> : <Hash className="w-3.5 h-3.5 mr-1" />}
+                                    <span className="uppercase tracking-widest">{checkoutIsPriority ? `P-${sectorPrefix}` : sectorPrefix}</span>
+                                </button>
                                 <input
                                     type="text"
                                     value={checkoutCode}
                                     onChange={(e) => setCheckoutCode(e.target.value.toUpperCase())}
                                     placeholder="000"
-                                    className="w-full h-14 bg-slate-900/50 border-2 border-slate-700/50 rounded-2xl pl-28 pr-4 text-white placeholder-slate-700 focus:outline-none focus:border-emerald-500/50 focus:bg-slate-900 transition-all font-black text-xl tracking-[0.2em] shadow-inner"
+                                    className="w-full h-14 bg-slate-900/50 border-2 border-slate-700/50 rounded-2xl pl-32 pr-4 text-white placeholder-slate-700 focus:outline-none focus:border-emerald-500/50 focus:bg-slate-900 transition-all font-black text-xl tracking-[0.2em] shadow-inner"
                                     maxLength={4}
                                 />
-                                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center bg-slate-800 rounded-xl p-1 gap-1">
-                                    <button 
-                                        type="button" 
-                                        onClick={() => setCheckoutIsPriority(false)}
-                                        className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${!checkoutIsPriority ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-300'}`}
-                                        title="Normal"
-                                    >N</button>
-                                    <button 
-                                        type="button" 
-                                        onClick={() => setCheckoutIsPriority(true)}
-                                        className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all flex items-center gap-1 ${checkoutIsPriority ? 'bg-amber-500 text-white shadow-md' : 'text-slate-500 hover:text-slate-300'}`}
-                                        title="Preferencial"
-                                    >P <Accessibility className="w-3 h-3"/></button>
-                                </div>
                             </div>
                             <button
                                 type="submit"
