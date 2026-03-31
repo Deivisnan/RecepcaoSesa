@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useRealTimeStatus } from '../useRealTimeStatus';
 import { useAuth } from '../contexts/AuthContext';
 import { 
-    PhoneCall, Users, Loader2, ListOrdered, User, AlertTriangle, 
-    LogOut, BarChart3, Clock, LayoutDashboard, CheckCircle2, ShieldAlert, CheckCheck, Hash, Accessibility 
+    PhoneCall, Users, Loader2, AlertTriangle, 
+    LogOut, BarChart3, CheckCircle2, ShieldAlert, CheckCheck, Hash, Accessibility 
 } from 'lucide-react';
 import { API_URL } from '../config/apiConfig';
 import { toast } from 'sonner';

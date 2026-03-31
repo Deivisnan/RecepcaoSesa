@@ -16,6 +16,7 @@ interface Ticket {
   status: 'IN_SERVICE' | 'WAITING' | 'IN_WAITING_ROOM' | 'NO_SHOW';
   timestamp: string;
   calledAt?: string | null;
+  isPriority?: boolean;
 }
 
 interface DisplayData {
